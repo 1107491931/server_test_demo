@@ -1,0 +1,19 @@
+# Git 版本控制文件
+.git
+.gitignore
+
+# IDE 和编辑器配置文件
+.idea
+.vscode
+.DS_Store
+
+# 本地数据库文件 (避免将本地测试数据打包进镜像)
+dbs/*.db
+
+# 文档文件 (构建应用不需要这些)
+a-docs
+*.md
+
+# Docker 相关文件
+Dockerfile
+.dockerignore

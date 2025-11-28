@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Dev 环境
+  dev:
+    build: .
+    container_name: server_test_demo_dev
+    ports:
+      - "8081:8081"
+    env_file:
+      - config/.env.dev
+    volumes:
+      - ./dbs/dev:/app/dbs
+    restart: unless-stopped
+
+  # Staging 环境
+  staging:
+    build: .
+    container_name: server_test_demo_staging
+    ports:
+      - "8082:8081"
+    env_file:
+      - config/.env.staging
+    volumes:
+      - ./dbs/staging:/app/dbs
+    restart: unless-stopped
+
+  # Pre 环境
+  pre:
+    build: .
+    container_name: server_test_demo_pre
+    ports:
+      - "8083:8081"
+    env_file:
+      - config/.env.pre
+    volumes:
+      - ./dbs/pre:/app/dbs
+    restart: unless-stopped
+
+  # Production 环境
+  prod:
+    build: .
+    container_name: server_test_demo_prod
+    ports:
+      - "8084:8081"
+    env_file:
+      - config/.env.prod
+    volumes:
+      - ./dbs/prod:/app/dbs
+    restart: unless-stopped
