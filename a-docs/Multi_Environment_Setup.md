@@ -1,6 +1,6 @@
 # 多环境配置指南（hosts + Nginx 反向代理方案）
 
-本文档详细介绍如何使用 **hosts 文件 + Nginx 反向代理** 的方式，在本地搭建多个环境（dev、staging、pre、prod），实现通过不同域名访问不同环境的效果。
+本文档详细介绍如何使用 **hosts 文件 + Nginx 反向代理** 的方式，在本地搭建多个环境（staging、pre、prod），实现通过不同域名访问不同环境的效果。
 简单总结流程就是：
 - 本地Nginx配置负责将域名转发到127.0.0.1: 8082， 从而请求打到服务端
 - 项目中配置的config下的不同环境，是为了在运行Docker时设置不同的测试环境
@@ -28,7 +28,6 @@
 
 在实际开发中，我们通常需要多个环境：
 
-- **Dev（开发环境）**：本地开发使用
 - **Staging（测试环境）**：测试团队使用
 - **Pre（预发布环境）**：上线前最后验证
 - **Production（生产环境）**：正式对外服务
@@ -37,15 +36,13 @@
 
 **传统方案（端口区分）**：
 ```
-http://127.0.0.1:8081  (dev)
-http://127.0.0.1:8082  (staging)
-http://127.0.0.1:8083  (pre)
-http://127.0.0.1:8084  (prod)
+http://127.0.0.1:8081  (staging)
+http://127.0.0.1:8082  (pre)
+http://127.0.0.1:8083  (prod)
 ```
 
 **hosts + Nginx 方案（域名区分）**：
 ```
-http://api.dev.myapp.com       (dev)
 http://api.staging.myapp.com   (staging)
 http://api.pre.myapp.com       (pre)
 http://api.prod.myapp.com      (prod)
@@ -67,10 +64,9 @@ http://api.staging.myapp.com (hosts 解析到 127.0.0.1)
     ↓
 Nginx (监听 80 端口，根据域名转发)
     ↓
-    ├─ api.dev.myapp.com      → 127.0.0.1:8081 (Docker 容器)
-    ├─ api.staging.myapp.com  → 127.0.0.1:8082 (Docker 容器)
-    ├─ api.pre.myapp.com      → 127.0.0.1:8083 (Docker 容器)
-    └─ api.prod.myapp.com     → 127.0.0.1:8084 (Docker 容器)
+    ├─ api.staging.myapp.com  → 127.0.0.1:8081 (Docker 容器)
+    ├─ api.pre.myapp.com      → 127.0.0.1:8082 (Docker 容器)
+    └─ api.prod.myapp.com     → 127.0.0.1:8083 (Docker 容器)
 ```
 
 ---
@@ -137,7 +133,6 @@ sudo vim /etc/hosts
 
 ```
 # Test Demo Project - Multi Environment Setup
-127.0.0.1  api.dev.myapp.com
 127.0.0.1  api.staging.myapp.com
 127.0.0.1  api.pre.myapp.com
 127.0.0.1  api.prod.myapp.com
@@ -145,7 +140,7 @@ sudo vim /etc/hosts
 
 **说明**：
 - `127.0.0.1`：本地回环地址（localhost）
-- `api.dev.myapp.com`：自定义的域名（可以随意命名）
+- `api.staging.myapp.com`：自定义的域名（可以随意命名）
 - 所有域名都指向本地
 
 ### 3.4 保存并退出
@@ -459,32 +454,6 @@ sudo vim /etc/nginx/conf.d/server_test_demo.conf
 将以下内容复制到配置文件中（日志路径使用 `/opt/homebrew/`）：
 
 ```nginx
-# Dev 环境
-server {
-    listen 80;
-    server_name api.dev.myapp.com;
-    
-    # 访问日志（Apple Silicon Mac 路径）
-    access_log /opt/homebrew/var/log/nginx/server_test_demo_dev_access.log;
-    error_log /opt/homebrew/var/log/nginx/server_test_demo_dev_error.log;
-    
-    location / {
-        # 反向代理到 Docker 容器的 8081 端口
-        proxy_pass http://127.0.0.1:8081;
-        
-        # 传递原始请求头
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # 超时设置
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-}
-
 # Staging 环境
 server {
     listen 80;
@@ -554,28 +523,6 @@ server {
 将以下内容复制到配置文件中（日志路径使用 `/usr/local/`）：
 
 ```nginx
-# Dev 环境
-server {
-    listen 80;
-    server_name api.dev.myapp.com;
-    
-    # 访问日志（Intel Mac 路径）
-    access_log /usr/local/var/log/nginx/server_test_demo_dev_access.log;
-    error_log /usr/local/var/log/nginx/server_test_demo_dev_error.log;
-    
-    location / {
-        proxy_pass http://127.0.0.1:8081;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-}
-
 # Staging 环境
 server {
     listen 80;
@@ -645,28 +592,6 @@ server {
 将以下内容复制到配置文件中（日志路径使用 `/var/log/nginx/`）：
 
 ```nginx
-# Dev 环境
-server {
-    listen 80;
-    server_name api.dev.myapp.com;
-    
-    # 访问日志（Linux 路径）
-    access_log /var/log/nginx/server_test_demo_dev_access.log;
-    error_log /var/log/nginx/server_test_demo_dev_error.log;
-    
-    location / {
-        proxy_pass http://127.0.0.1:8081;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-}
-
 # Staging 环境
 server {
     listen 80;
@@ -822,18 +747,6 @@ mkdir -p config
 
 ### 6.2 创建各环境配置文件
 
-#### config/.env.dev
-
-```bash
-cat > config/.env.dev << 'EOF'
-# Dev 环境配置
-ENV=dev
-SERVER_PORT=8081
-DB_DSN=dbs/test_dev.db
-LOG_LEVEL=debug
-EOF
-```
-
 #### config/.env.staging
 
 ```bash
@@ -877,7 +790,6 @@ EOF
 ls -la config/
 
 # 应该看到：
-# .env.dev
 # .env.staging
 # .env.pre
 # .env.prod
@@ -891,7 +803,6 @@ ls -la config/
 
 ```bash
 # 为每个环境创建独立的数据库目录
-mkdir -p dbs/dev
 mkdir -p dbs/staging
 mkdir -p dbs/pre
 mkdir -p dbs/prod
@@ -899,18 +810,7 @@ mkdir -p dbs/prod
 
 ### 7.2 启动各环境容器
 
-#### Dev 环境（8081 端口）
-
-```bash
-docker run -d \
-  --name test_demo_dev \
-  -p 8081:8081 \
-  --env-file config/.env.dev \
-  -v $(pwd)/dbs/dev:/app/dbs \
-  test_demo_1.0.0
-```
-
-#### Staging 环境（8082 端口）
+#### Staging 环境（8081 端口）
 
 ```bash
 docker run -d \
@@ -1008,7 +908,7 @@ curl -X GET http://api.staging.myapp.com/users \
 docker ps
 
 # 应该看到 4 个容器在运行：
-# test_demo_dev       (0.0.0.0:8081->8081/tcp)
+# test_demo_staging   (0.0.0.0:8081->8081/tcp)
 # test_demo_staging   (0.0.0.0:8082->8081/tcp)
 # test_demo_pre       (0.0.0.0:8083->8081/tcp)
 # test_demo_prod      (0.0.0.0:8084->8081/tcp)
@@ -1031,17 +931,14 @@ docker logs -f test_demo_staging
 ### 8.1 测试端口访问（绕过 Nginx）
 
 ```bash
-# 测试 Dev 环境（直接访问端口）
+# 测试 Staging 环境（直接访问端口）
 curl http://127.0.0.1:8081/users
 
-# 测试 Staging 环境
+# 测试 Pre 环境
 curl http://127.0.0.1:8082/users
 
-# 测试 Pre 环境
-curl http://127.0.0.1:8083/users
-
 # 测试 Production 环境
-curl http://127.0.0.1:8084/users
+curl http://127.0.0.1:8083/users
 ```
 
 如果返回 JSON 数据或空数组 `[]`，说明容器运行正常。
@@ -1050,7 +947,7 @@ curl http://127.0.0.1:8084/users
 
 ```bash
 # 测试 Dev 环境
-curl http://api.dev.myapp.com/users
+curl http://api.staging.myapp.com/users
 
 # 测试 Staging 环境
 curl http://api.staging.myapp.com/users
@@ -1067,7 +964,6 @@ curl http://api.prod.myapp.com/users
 打开浏览器，访问以下地址：
 
 ```
-http://api.dev.myapp.com/swagger/index.html
 http://api.staging.myapp.com/swagger/index.html
 http://api.pre.myapp.com/swagger/index.html
 http://api.prod.myapp.com/swagger/index.html
@@ -1095,7 +991,7 @@ curl http://api.staging.myapp.com/users
 
 ```bash
 # 查看各环境的数据库文件
-ls -lh dbs/dev/
+ls -lh dbs/staging/
 ls -lh dbs/staging/
 ls -lh dbs/pre/
 ls -lh dbs/prod/
@@ -1115,18 +1011,6 @@ ls -lh dbs/prod/
 version: '3.8'
 
 services:
-  # Dev 环境
-  dev:
-    build: .
-    container_name: test_demo_dev
-    ports:
-      - "8081:8081"
-    env_file:
-      - config/.env.dev
-    volumes:
-      - ./dbs/dev:/app/dbs
-    restart: unless-stopped
-
   # Staging 环境
   staging:
     build: .
@@ -1312,7 +1196,6 @@ sudo nginx -s reload
                       ↓
 ┌─────────────────────────────────────────────────────┐
 │  hosts 文件                                          │
-│  127.0.0.1  api.dev.myapp.com                       │
 │  127.0.0.1  api.staging.myapp.com                   │
 │  127.0.0.1  api.pre.myapp.com                       │
 │  127.0.0.1  api.prod.myapp.com                      │
@@ -1322,25 +1205,24 @@ sudo nginx -s reload
 │  Nginx (80 端口)                                     │
 │  根据 server_name 转发请求                           │
 └─────────────────────────────────────────────────────┘
-         ↓           ↓           ↓           ↓
-    ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
-    │ :8081  │  │ :8082  │  │ :8083  │  │ :8084  │
-    └────────┘  └────────┘  └────────┘  └────────┘
-         ↓           ↓           ↓           ↓
-    ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
-    │  Dev   │  │Staging │  │  Pre   │  │  Prod  │
-    │ 容器   │  │ 容器   │  │ 容器   │  │ 容器   │
-    └────────┘  └────────┘  └────────┘  └────────┘
+         ↓           ↓           ↓
+    ┌────────┐  ┌────────┐  ┌────────┐
+    │ :8081  │  │ :8082  │  │ :8083  │
+    └────────┘  └────────┘  └────────┘
+         ↓           ↓           ↓
+    ┌────────┐  ┌────────┐  ┌────────┐
+    │Staging │  │  Pre   │  │  Prod  │
+    │ 容器   │  │ 容器   │  │ 容器   │
+    └────────┘  └────────┘  └────────┘
 ```
 
 ### 11.2 访问地址汇总
 
 | 环境 | 域名访问 | 端口访问 | Swagger 文档 |
 |------|---------|---------|-------------|
-| Dev | http://api.dev.myapp.com | http://127.0.0.1:8081 | http://api.dev.myapp.com/swagger/index.html |
-| Staging | http://api.staging.myapp.com | http://127.0.0.1:8082 | http://api.staging.myapp.com/swagger/index.html |
-| Pre | http://api.pre.myapp.com | http://127.0.0.1:8083 | http://api.pre.myapp.com/swagger/index.html |
-| Prod | http://api.prod.myapp.com | http://127.0.0.1:8084 | http://api.prod.myapp.com/swagger/index.html |
+| Staging | http://api.staging.myapp.com | http://127.0.0.1:8081 | http://api.staging.myapp.com/swagger/index.html |
+| Pre | http://api.pre.myapp.com | http://127.0.0.1:8082 | http://api.pre.myapp.com/swagger/index.html |
+| Prod | http://api.prod.myapp.com | http://127.0.0.1:8083 | http://api.prod.myapp.com/swagger/index.html |
 
 ### 11.3 常用命令汇总
 
@@ -1434,7 +1316,7 @@ echo ""
 
 # 1. 配置 hosts
 echo "Step 1: Configuring hosts file..."
-if ! grep -q "api.dev.myapp.com" /etc/hosts; then
+if ! grep -q "api.staging.myapp.com" /etc/hosts; then
     sudo bash -c 'cat >> /etc/hosts << EOF
 
 # Test Demo Project - Multi Environment
@@ -1479,7 +1361,7 @@ echo ""
 echo "Step 6: Verifying setup..."
 sleep 3
 
-for env in dev staging pre prod; do
+for env in staging pre prod; do
     if curl -s http://api.$env.myapp.com/users > /dev/null; then
         echo "✅ $env environment is running"
     else
@@ -1493,7 +1375,6 @@ echo "Setup Complete!"
 echo "================================"
 echo ""
 echo "Access your environments:"
-echo "  Dev:     http://api.dev.myapp.com"
 echo "  Staging: http://api.staging.myapp.com"
 echo "  Pre:     http://api.pre.myapp.com"
 echo "  Prod:    http://api.prod.myapp.com"
@@ -1522,12 +1403,11 @@ echo "Cleaning up multi-environment setup..."
 docker-compose down
 
 # 删除数据库文件（可选）
-# rm -rf dbs/dev dbs/staging dbs/pre dbs/prod
+# rm -rf dbs/staging dbs/pre dbs/prod
 
 # 从 hosts 文件移除配置（需要手动）
 echo ""
 echo "Please manually remove the following lines from /etc/hosts:"
-echo "127.0.0.1  api.dev.myapp.com"
 echo "127.0.0.1  api.staging.myapp.com"
 echo "127.0.0.1  api.pre.myapp.com"
 echo "127.0.0.1  api.prod.myapp.com"

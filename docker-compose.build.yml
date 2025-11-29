@@ -1,0 +1,41 @@
+version: '3.8'
+
+# 仅用于构建镜像的配置文件
+# 不包含任何环境变量和运行时配置
+#
+# 构建命令（使用默认 latest 标签）:
+#   docker-compose -f docker-compose.build.yml build
+#
+# 构建命令（指定版本号）:
+#   IMAGE_TAG=v1.0.0 docker-compose -f docker-compose.build.yml build
+# 构建后的镜像名称：
+# - user-service:v1.0.0
+# - post-service:v1.0.0
+#
+# 构建命令（使用环境变量文件）:
+#   export IMAGE_TAG=v1.0.0
+#   docker-compose -f docker-compose.build.yml build
+
+# 推荐做法：
+# 1. 设置版本号
+# export IMAGE_TAG=v1.0.0
+# 2.构建
+# docker-compose -f docker-compose.build.yml build
+# 3. 部署到各个环境
+# docker-compose -f docker-compose-staging.yml up -d
+# docker-compose -f docker-compose-pre.yml up -d
+# docker-compose -f docker-compose-prod.yml up -d
+
+services:
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    image: user-service:${IMAGE_TAG:-latest}
+
+  post-service:
+    build:
+      context: ./services/post-service
+      dockerfile: Dockerfile
+    image: post-service:${IMAGE_TAG:-latest}
+

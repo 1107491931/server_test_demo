@@ -30,8 +30,36 @@ go.work
 
 # Logs
 *.log
+logs/
 
-# Project specific
+# Environment variables (可能包含敏感信息)
+.env
+.env.*
+!*.env.example
+services/*/config/.env.*
+
+# Database files
 *.db
+*.sqlite
+*.sqlite3
+# 允许根目录 dbs 下的数据库文件（如果需要）
 !dbs/*.db
 !dbs/**/*.db
+# 忽略服务目录下的数据库文件
+services/*/dbs/**/*.db
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Build artifacts
+*.bin
+# 服务二进制文件（在服务目录下）
+services/*/user-service
+services/*/post-service
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup

@@ -1,0 +1,53 @@
+version: '3.8'
+
+# 使用环境变量 IMAGE_TAG 指定镜像版本号，默认使用 latest
+# 运行命令: IMAGE_TAG=v1.0.0 docker-compose -f docker-compose-prod.yml up -d
+
+services:
+  user-service:
+    image: user-service:${IMAGE_TAG:-latest}
+    container_name: user-service-prod
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./services/user-service/config/.env.prod
+    volumes:
+      - ./services/user-service/dbs:/app/dbs
+    networks:
+      - microservices-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  post-service:
+    image: post-service:${IMAGE_TAG:-latest}
+    container_name: post-service-prod
+    ports:
+      - "8082:8082"
+    env_file:
+      - ./services/post-service/config/.env.prod
+    volumes:
+      - ./services/post-service/dbs:/app/dbs
+    networks:
+      - microservices-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    depends_on:
+      - user-service
+
+networks:
+  microservices-network:
+    driver: bridge

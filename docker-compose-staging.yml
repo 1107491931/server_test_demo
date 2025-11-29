@@ -1,0 +1,37 @@
+version: '3.8'
+
+# 使用环境变量 IMAGE_TAG 指定镜像版本号，默认使用 latest
+# 运行命令: IMAGE_TAG=v1.0.0 docker-compose -f docker-compose-staging.yml up -d
+
+services:
+  user-service:
+    image: user-service:${IMAGE_TAG:-latest}
+    container_name: user-service-staging
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./services/user-service/config/.env.staging
+    volumes:
+      - ./services/user-service/dbs:/app/dbs
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  post-service:
+    image: post-service:${IMAGE_TAG:-latest}
+    container_name: post-service-staging
+    ports:
+      - "8082:8082"
+    env_file:
+      - ./services/post-service/config/.env.staging
+    volumes:
+      - ./services/post-service/dbs:/app/dbs
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    depends_on:
+      - user-service
+
+networks:
+  microservices-network:
+    driver: bridge

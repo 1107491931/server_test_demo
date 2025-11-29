@@ -8,12 +8,57 @@
 .DS_Store
 
 # 本地数据库文件 (避免将本地测试数据打包进镜像)
-dbs/*.db
+dbs/**/*.db
+services/*/dbs/**/*.db
 
 # 文档文件 (构建应用不需要这些)
-a-docs
+a-docs/
 *.md
+docs/
+README.md
 
 # Docker 相关文件
 Dockerfile
 .dockerignore
+docker-compose*.yml
+
+# 日志文件 (避免将本地日志打包进镜像)
+logs/
+*.log
+nohup.out
+
+# 二进制文件和可执行文件
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.bin
+
+# Go 构建产物
+build/
+# 服务二进制文件
+services/*/user-service
+services/*/post-service
+
+# 临时文件
+*.tmp
+*.temp
+*.swp
+*~
+*.bak
+*.backup
+
+# 环境变量文件 (避免将敏感信息打包进镜像)
+.env
+.env.local
+.env.*.local
+services/*/config/.env.*
+
+# 服务特定文件 (在根目录构建时忽略)
+services/*/Dockerfile
+services/*/.dockerignore
+
+# 其他不需要的文件
+scripts/
+nginx/

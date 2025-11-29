@@ -1,0 +1,57 @@
+package client
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"time"
+
+	"common/client"
+	"common/dto"
+)
+
+// PostClient 动态服务客户端
+type PostClient struct {
+	httpClient *client.HTTPClient
+}
+
+// NewPostClient 创建动态服务客户端
+func NewPostClient() *PostClient {
+	baseURL := os.Getenv("POST_SERVICE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8082"
+	}
+
+	return &PostClient{
+		httpClient: client.NewHTTPClient(baseURL),
+	}
+}
+
+// GetUserPosts 获取用户的所有动态（同步调用，默认10秒超时）
+func (c *PostClient) GetUserPosts(userID uint, page, pageSize int) ([]dto.PostInfo, int, error) {
+	return c.GetUserPostsWithContext(context.Background(), userID, page, pageSize)
+}
+
+// GetUserPostsWithContext 获取用户的所有动态（支持Context和自定义超时）
+func (c *PostClient) GetUserPostsWithContext(ctx context.Context, userID uint, page, pageSize int) ([]dto.PostInfo, int, error) {
+	path := fmt.Sprintf("/api/v1/posts/user/%d?page=%d&page_size=%d", userID, page, pageSize)
+
+	var response dto.PostListResponse
+
+	// 如果没有设置超时，默认10秒超时
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+	}
+
+	if err := c.httpClient.GetJSONWithContext(ctx, path, &response); err != nil {
+		return nil, 0, err
+	}
+
+	if response.Code != 200 {
+		return nil, 0, fmt.Errorf("failed to get user posts: %s", response.Message)
+	}
+
+	return response.Data.Posts, response.Data.Total, nil
+}
