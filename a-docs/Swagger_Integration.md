@@ -42,7 +42,7 @@ require (
 
 ```go
 // @title           Test Demo API
-// @version         1.0
+// @version         2.0
 // @description     This is a sample server for Test Demo.
 // @host            localhost:8081
 // @BasePath        /
@@ -134,6 +134,11 @@ go run main.go
 打开浏览器访问：
 
 [http://localhost:8081/swagger/index.html](http://localhost:8081/swagger/index.html)
+
+
+如果需要根据域名进行访问，比如`http://api.staging.myapp.com/swagger/index.html`, 则需要在Nginx中配置
+- 参考项目根目录下`nginx/testdemo.conf`
+- 将文件内容copy到系统目录下`/opt/homebrew/etc/nginx/servers/testdemo.conf`
 
 ## 7. 常见问题
 

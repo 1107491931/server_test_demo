@@ -5,16 +5,19 @@ import (
 	"log"
 	"os"
 	"user-service/dao"
+	_ "user-service/docs" // Swagger 文档
 	"user-service/handler"
 	"user-service/model"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 // @title           User Service API
-// @version         1.0
+// @version         2.0
 // @description     用户服务API
 // @host            localhost:8081
 // @BasePath        /
@@ -72,15 +75,18 @@ func main() {
 	{
 		users := v1.Group("/users")
 		{
-			users.POST("/register", handler.Register) // 注册用户
-			users.POST("/login", handler.Login) // 登录
-			users.GET("/:user_id", handler.GetUserByID) // 获取用户信息
+			users.POST("/register", handler.Register)              // 注册用户
+			users.POST("/login", handler.Login)                    // 登录
+			users.GET("/:user_id", handler.GetUserByID)            // 获取用户信息
 			users.GET("/:user_id/posts", handler.GetUserWithPosts) // 根据用户ID获取用户信息及其所有动态
-			users.GET("/phone/:phone", handler.GetUserByPhone) // 根据手机号获取用户信息
-			users.POST("/batch", handler.BatchGetUsers) // 批量获取用户信息
-			users.GET("", handler.GetAllUsers) // 获取所有用户信息
+			users.GET("/phone/:phone", handler.GetUserByPhone)     // 根据手机号获取用户信息
+			users.POST("/batch", handler.BatchGetUsers)            // 批量获取用户信息
+			users.GET("", handler.GetAllUsers)                     // 获取所有用户信息
 		}
 	}
+
+	// Swagger 文档, 需要在启动服务之前
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// 8. 启动服务
 	fmt.Printf("User Service is running on :%s\n", port)

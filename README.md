@@ -1,14 +1,4 @@
 这是一个简单的 Go 语言测试项目，用于演示多环境部署的流程。
-
-# V1.0.0
-项目是单服务项目，实现了一些基础功能；
-
-- 用户注册、登录、查询
-- Docker构建镜像， 参考a-docs/Docker_Build.md
-- 支持多环境部署， 参考a-docs/Deploy.md
-- 支持Swagger， 参考a-docs/Swagger_Integration.md
-- 支持数据库，每个环境数据库独立， dbs目录下
-
 # V2.0.0
 项目采用了微服务架构，有两个微服务：登录注册模块、发布动态模块。
 示例中的`http://localhost:8082`都可以替代为 `http://api.staging.myapp.com`
@@ -204,6 +194,14 @@ curl -s http://api.staging.myapp.com/api/v1/posts/1/user | jq '.'
 - 包含手动构建、docker-compose构建
 - 支持设置版本号
 - 介绍了单个镜像启动、多个镜像同时启动
+
+## Swggger
+参考`a-docs/Swagger_Integration.md`
+- 是单个服务的配置，每个服务单独配置，会产生各个服务的Swagger文档
+- 执行命令：`swag init --parseDependency --parseInternal` 构建Swagger，因为服务依赖了外部服务代码common
+- 用户服务或镜像启动后，就可以访问Swagger页面了：
+  - `http://localhost:8081/swagger/index.html`
+  - 
 
 ## 问题
 ##### POST_SERVICE_URL为何不能使用环境配置中的值
