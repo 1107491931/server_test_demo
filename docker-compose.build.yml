@@ -29,13 +29,12 @@ version: '3.8'
 services:
   user-service:
     build:
-      context: ./services/user-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: user-service/Dockerfile
     image: user-service:${IMAGE_TAG:-latest}
 
   post-service:
     build:
-      context: ./services/post-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: post-service/Dockerfile
     image: post-service:${IMAGE_TAG:-latest}
-

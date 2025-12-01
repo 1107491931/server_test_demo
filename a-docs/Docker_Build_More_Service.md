@@ -22,11 +22,7 @@ docker build -t [镜像名称:标签] -f [Dockerfile路径] [构建上下文路�
 **示例命令：**
 ```bash
 # 在项目根目录执行
-docker build -t user-service:latest -f services/user-service/Dockerfile services/user-service
-
-# 或直接在服务目录下执行
-cd services/user-service
-docker build -t user-service:latest .
+docker build -t post-service:V2.0.0 -f services/post-service/Dockerfile services
 ```
 
 **参数说明：**
@@ -34,32 +30,14 @@ docker build -t user-service:latest .
   - `镜像名称`: 建议使用服务名称，便于识别
   - `标签`: 可使用版本号(如`1.0.0`)或环境标识(如`staging`、`pre`、`prod`)
 - `-f services/user-service/Dockerfile`: 指定Dockerfile路径（如果不在当前目录）
-- `services/user-service`: 指定构建上下文，Docker将在此目录下查找文件
+- `services`: 指定构建上下文，Docker将在此目录下查找文件， 因为各个服务依赖了common服务，因此得在这个目录下构建
 
 ### 2.2 动态服务镜像构建
 
 **示例命令：**
 ```bash
 # 在项目根目录执行
-docker build -t post-service:latest -f services/post-service/Dockerfile services/post-service
-
-# 或直接在服务目录下执行
-cd services/post-service
-docker build -t post-service:latest .
-```
-
-### 2.3 自定义标签构建
-
-可以为镜像添加特定版本或环境标签：
-
-```bash
-# 构建带版本号的镜像
-docker build -t user-service:1.0.0 services/user-service
-
-# 构建带环境标识的镜像
-docker build -t user-service:staging services/user-service
-docker build -t user-service:pre services/user-service
-docker build -t user-service:prod services/user-service
+docker build -t post-service:V2.0.0 -f services/post-service/Dockerfile services
 ```
 
 ## 3. 多服务Docker镜像构建（推荐）
@@ -82,39 +60,25 @@ IMAGE_TAG=v1.0.0 docker-compose -f docker-compose.build.yml build
 - `build`: 构建命令，会构建配置文件中定义的所有服务
 - `IMAGE_TAG`: 可选，指定镜像版本号，默认使用 latest
 
-### 3.2 指定环境构建
 
-项目提供了多个环境的docker-compose配置文件：
-
-```bash
-# 构建staging环境镜像
-docker-compose -f docker-compose-staging.yml build
-
-# 构建pre环境镜像
-docker-compose -f docker-compose-pre.yml build
-
-# 构建prod环境镜像
-docker-compose -f docker-compose-prod.yml build
-```
-
-### 3.3 构建指定服务
+### 3.2 构建指定服务
 
 可以只构建特定的服务：
 
 ```bash
 # 只构建user-service
-docker-compose -f docker-compose.build.yml build user-service
+IMAGE_TAG=V2.0.0 docker-compose -f docker-compose.build.yml build user-service
 
 # 只构建post-service
-docker-compose -f docker-compose.build.yml build post-service
+IMAGE_TAG=V2.0.0 docker-compose -f docker-compose.build.yml build post-service
 ```
 
-### 3.4 并行构建加速
+### 3.3 并行构建加速
 
 使用`--parallel`参数可以并行构建多个服务，加快构建速度：
 
 ```bash
-docker-compose -f docker-compose.build.yml build --parallel
+IMAGE_TAG=V2.0.0 docker-compose -f docker-compose.build.yml build --parallel
 ```
 
 ## 4. Dockerfile构建参数详解
@@ -250,14 +214,14 @@ docker run -d \
 使用docker-compose可以一键启动所有服务：
 
 ```bash
-# 启动staging环境服务
-docker-compose -f docker-compose-staging.yml up -d
+# 启动staging环境服务， 指定使用 V2.0.0 版本启动
+IMAGE_TAG=V2.0.0 docker-compose -f docker-compose-staging.yml up -d
 
 # 启动pre环境服务
-docker-compose -f docker-compose-pre.yml up -d
+IMAGE_TAG=V2.0.0 docker-compose -f docker-compose-pre.yml up -d
 
 # 启动prod环境服务
-docker-compose -f docker-compose-prod.yml up -d
+IMAGE_TAG=V2.0.0 docker-compose -f docker-compose-prod.yml up -d
 ```
 
 **参数说明：**
@@ -273,6 +237,9 @@ docker images
 
 # 查看特定镜像
 docker images user-service
+
+# 查看当前正在运行的容器使用的是哪个版本的镜像
+docker ps
 ```
 
 ### 7.2 删除镜像

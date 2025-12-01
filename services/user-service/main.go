@@ -67,24 +67,18 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	// 简洁路径路由（与Nginx配置匹配）
-	r.POST("/register", handler.Register)
-	r.POST("/login", handler.Login)
-	r.GET("/users", handler.GetAllUsers)
-	r.GET("/users/:phone", handler.GetUserByPhone)
-
-	// API路由组（保留，供直接访问服务使用）
+	// API路由组
 	v1 := r.Group("/api/v1")
 	{
 		users := v1.Group("/users")
 		{
-			users.POST("/register", handler.Register)
-			users.POST("/login", handler.Login)
-			users.GET("/:user_id", handler.GetUserByID)
-			users.GET("/:user_id/posts", handler.GetUserWithPosts)
-			users.GET("/phone/:phone", handler.GetUserByPhone)
-			users.POST("/batch", handler.BatchGetUsers)
-			users.GET("", handler.GetAllUsers)
+			users.POST("/register", handler.Register) // 注册用户
+			users.POST("/login", handler.Login) // 登录
+			users.GET("/:user_id", handler.GetUserByID) // 获取用户信息
+			users.GET("/:user_id/posts", handler.GetUserWithPosts) // 根据用户ID获取用户信息及其所有动态
+			users.GET("/phone/:phone", handler.GetUserByPhone) // 根据手机号获取用户信息
+			users.POST("/batch", handler.BatchGetUsers) // 批量获取用户信息
+			users.GET("", handler.GetAllUsers) // 获取所有用户信息
 		}
 	}
 

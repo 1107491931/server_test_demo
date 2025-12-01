@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"post-service/client"
 	"post-service/dao"
 	"post-service/model"
 	"strconv"
+	"time"
 
 	"common/dto"
 	"common/utils"
@@ -21,20 +23,6 @@ type CreatePostRequest struct {
 	Images  []string `json:"images"`
 }
 
-// LikeRequest 点赞请求参数
-type LikeRequest struct {
-	UserID uint `json:"user_id" binding:"required"`
-}
-
-// ForwardRequest 转发请求参数
-type ForwardRequest struct {
-	UserID uint `json:"user_id" binding:"required"`
-}
-
-// FavoriteRequest 收藏请求参数
-type FavoriteRequest struct {
-	UserID uint `json:"user_id" binding:"required"`
-}
 
 // PostResponse 动态响应数据
 type PostResponse struct {
@@ -46,19 +34,6 @@ type PostResponse struct {
 	ForwardCount  int      `json:"forward_count"`
 	FavoriteCount int      `json:"favorite_count"`
 	CreatedAt     string   `json:"created_at"`
-}
-
-// PostDetailResponse 动态详情响应数据（包含用户信息）
-type PostDetailResponse struct {
-	PostID        uint          `json:"post_id"`
-	UserID        uint          `json:"user_id"`
-	UserInfo      *dto.UserInfo `json:"user_info,omitempty"`
-	Content       string        `json:"content"`
-	Images        []string      `json:"images"`
-	LikeCount     int           `json:"like_count"`
-	ForwardCount  int           `json:"forward_count"`
-	FavoriteCount int           `json:"favorite_count"`
-	CreatedAt     string        `json:"created_at"`
 }
 
 // toPostResponse 将Post模型转换为PostResponse
@@ -111,7 +86,7 @@ func CreatePost(c *gin.Context) {
 
 // GetPostByID 获取动态详情
 // @Summary      获取动态详情
-// @Description  根据动态ID获取动态详情（包含用户信息）
+// @Description  根据动态ID获取动态详情
 // @Tags         posts
 // @Produce      json
 // @Param        post_id path int true "动态ID"
@@ -136,41 +111,15 @@ func GetPostByID(c *gin.Context) {
 		return
 	}
 
-	// 异步调用用户服务获取用户信息
-	userClient := client.NewUserClient()
-	userInfoChan, errChan := userClient.GetUserInfo(c.Request.Context(), post.UserID)
-
-	var userInfo *dto.UserInfo
-	select {
-	case userInfo = <-userInfoChan:
-		// 成功获取用户信息
-	case err := <-errChan:
-		// 如果获取用户信息失败，仍然返回动态信息，但不包含用户信息
-		fmt.Printf("Failed to get user info: %v\n", err)
-	case <-c.Request.Context().Done():
-		// 请求被取消
-		fmt.Printf("Request canceled while getting user info\n")
-	}
-
-	// 组装响应数据
-	response := PostDetailResponse{
-		PostID:        post.ID,
-		UserID:        post.UserID,
-		UserInfo:      userInfo,
-		Content:       post.Content,
-		Images:        post.Images,
-		LikeCount:     post.LikeCount,
-		ForwardCount:  post.ForwardCount,
-		FavoriteCount: post.FavoriteCount,
-		CreatedAt:     post.CreatedAt.Format("2006-01-02 15:04:05"),
-	}
+	// 转换为响应格式（不包含用户信息，仅返回动态数据）
+	response := toPostResponse(post)
 
 	utils.Success(c, response)
 }
 
 // GetPostsByUserID 获取用户的所有动态
 // @Summary      获取用户的所有动态
-// @Description  根据用户ID获取该用户的所有动态（分页，包含用户信息）
+// @Description  根据用户ID获取该用户的所有动态（分页，供服务间调用）
 // @Tags         posts
 // @Produce      json
 // @Param        user_id path int true "用户ID"
@@ -204,37 +153,10 @@ func GetPostsByUserID(c *gin.Context) {
 		return
 	}
 
-	// 异步调用用户服务获取用户信息
-	userClient := client.NewUserClient()
-	userInfoChan, errChan := userClient.GetUserInfo(c.Request.Context(), userID)
-
-	var userInfo *dto.UserInfo
-	select {
-	case userInfo = <-userInfoChan:
-		// 成功获取用户信息
-	case err := <-errChan:
-		// 如果获取用户信息失败，记录日志但不影响返回动态列表
-		fmt.Printf("Failed to get user info: %v\n", err)
-	case <-c.Request.Context().Done():
-		// 请求被取消
-		fmt.Printf("Request canceled while getting user info\n")
-	}
-
-	// 转换为响应格式（包含用户信息）
-	var responses []PostDetailResponse
+	// 转换为响应格式
+	var responses []PostResponse
 	for _, post := range posts {
-		response := PostDetailResponse{
-			PostID:        post.ID,
-			UserID:        post.UserID,
-			UserInfo:      userInfo,
-			Content:       post.Content,
-			Images:        post.Images,
-			LikeCount:     post.LikeCount,
-			ForwardCount:  post.ForwardCount,
-			FavoriteCount: post.FavoriteCount,
-			CreatedAt:     post.CreatedAt.Format("2006-01-02 15:04:05"),
-		}
-		responses = append(responses, response)
+		responses = append(responses, toPostResponse(&post))
 	}
 
 	// 组装响应数据
@@ -276,52 +198,10 @@ func GetAllPosts(c *gin.Context) {
 		return
 	}
 
-	// 获取所有用户ID
-	userIDs := make([]uint, 0)
-	userIDMap := make(map[uint]bool)
+	// 转换为响应格式（不包含用户信息，仅返回动态数据）
+	var responses []PostResponse
 	for _, post := range posts {
-		if !userIDMap[post.UserID] {
-			userIDs = append(userIDs, post.UserID)
-			userIDMap[post.UserID] = true
-		}
-	}
-
-	// 异步批量获取用户信息
-	var userInfoMap map[uint]dto.UserInfo
-	if len(userIDs) > 0 {
-		userClient := client.NewUserClient()
-		userInfoMapChan, errChan := userClient.BatchGetUserInfo(c.Request.Context(), userIDs)
-
-		select {
-		case userInfoMap = <-userInfoMapChan:
-			// 成功获取用户信息
-		case err := <-errChan:
-			fmt.Printf("Failed to batch get user info: %v\n", err)
-		case <-c.Request.Context().Done():
-			fmt.Printf("Request canceled while batch getting user info\n")
-		}
-	}
-
-	// 转换为响应格式（包含用户信息）
-	var responses []PostDetailResponse
-	for _, post := range posts {
-		response := PostDetailResponse{
-			PostID:        post.ID,
-			UserID:        post.UserID,
-			Content:       post.Content,
-			Images:        post.Images,
-			LikeCount:     post.LikeCount,
-			ForwardCount:  post.ForwardCount,
-			FavoriteCount: post.FavoriteCount,
-			CreatedAt:     post.CreatedAt.Format("2006-01-02 15:04:05"),
-		}
-
-		// 添加用户信息
-		if userInfo, ok := userInfoMap[post.UserID]; ok {
-			response.UserInfo = &userInfo
-		}
-
-		responses = append(responses, response)
+		responses = append(responses, toPostResponse(&post))
 	}
 
 	// 组装响应数据
@@ -337,12 +217,10 @@ func GetAllPosts(c *gin.Context) {
 
 // LikePost 点赞动态
 // @Summary      点赞动态
-// @Description  点赞动态
+// @Description  对指定动态进行点赞操作
 // @Tags         posts
-// @Accept       json
 // @Produce      json
 // @Param        post_id path int true "动态ID"
-// @Param        request body LikeRequest true "用户ID"
 // @Success      200  {object}  utils.Response
 // @Router       /api/v1/posts/{post_id}/like [post]
 func LikePost(c *gin.Context) {
@@ -350,12 +228,6 @@ func LikePost(c *gin.Context) {
 	var postID uint
 	if _, err := fmt.Sscanf(postIDParam, "%d", &postID); err != nil {
 		utils.BadRequest(c, "Invalid post ID")
-		return
-	}
-
-	var req LikeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
 		return
 	}
 
@@ -389,12 +261,10 @@ func LikePost(c *gin.Context) {
 
 // ForwardPost 转发动态
 // @Summary      转发动态
-// @Description  转发动态
+// @Description  对指定动态进行转发操作
 // @Tags         posts
-// @Accept       json
 // @Produce      json
 // @Param        post_id path int true "动态ID"
-// @Param        request body ForwardRequest true "用户ID"
 // @Success      200  {object}  utils.Response
 // @Router       /api/v1/posts/{post_id}/forward [post]
 func ForwardPost(c *gin.Context) {
@@ -402,12 +272,6 @@ func ForwardPost(c *gin.Context) {
 	var postID uint
 	if _, err := fmt.Sscanf(postIDParam, "%d", &postID); err != nil {
 		utils.BadRequest(c, "Invalid post ID")
-		return
-	}
-
-	var req ForwardRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
 		return
 	}
 
@@ -441,12 +305,10 @@ func ForwardPost(c *gin.Context) {
 
 // FavoritePost 收藏动态
 // @Summary      收藏动态
-// @Description  收藏动态
+// @Description  对指定动态进行收藏操作
 // @Tags         posts
-// @Accept       json
 // @Produce      json
 // @Param        post_id path int true "动态ID"
-// @Param        request body FavoriteRequest true "用户ID"
 // @Success      200  {object}  utils.Response
 // @Router       /api/v1/posts/{post_id}/favorite [post]
 func FavoritePost(c *gin.Context) {
@@ -454,12 +316,6 @@ func FavoritePost(c *gin.Context) {
 	var postID uint
 	if _, err := fmt.Sscanf(postIDParam, "%d", &postID); err != nil {
 		utils.BadRequest(c, "Invalid post ID")
-		return
-	}
-
-	var req FavoriteRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
 		return
 	}
 
@@ -489,4 +345,61 @@ func FavoritePost(c *gin.Context) {
 	}
 
 	utils.SuccessWithMessage(c, "收藏成功", result)
+}
+
+// GetUserByPostID 根据动态ID获取用户信息
+// @Summary      根据动态ID获取用户信息
+// @Description  根据动态ID获取该动态发布者的用户信息
+// @Tags         posts
+// @Produce      json
+// @Param        post_id path int true "动态ID"
+// @Success      200  {object}  utils.Response
+// @Router       /api/v1/posts/{post_id}/user [get]
+func GetUserByPostID(c *gin.Context) {
+	postIDParam := c.Param("post_id")
+	var postID uint
+	if _, err := fmt.Sscanf(postIDParam, "%d", &postID); err != nil {
+		utils.BadRequest(c, "Invalid post ID")
+		return
+	}
+
+	// 获取动态信息
+	post, err := dao.GetPostByID(postID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			utils.NotFound(c, "Post not found")
+			return
+		}
+		utils.InternalServerError(c, "Database error")
+		return
+	}
+
+	// 调用用户服务获取用户信息
+	// 创建一个独立的 context，避免请求 context 被取消导致调用失败
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	userClient := client.NewUserClient()
+	userInfoChan, errChan := userClient.GetUserInfo(ctx, post.UserID)
+
+	var userInfo *dto.UserInfo
+	select {
+	case userInfo = <-userInfoChan:
+		// 成功获取用户信息
+		if userInfo == nil {
+			utils.NotFound(c, "User not found")
+			return
+		}
+	case err := <-errChan:
+		// 如果获取用户信息失败
+		utils.InternalServerError(c, fmt.Sprintf("Failed to get user info: %v", err))
+		return
+	case <-ctx.Done():
+		// 超时或取消
+		utils.InternalServerError(c, fmt.Sprintf("Request timeout: %v", ctx.Err()))
+		return
+	}
+
+	// 返回用户信息
+	utils.Success(c, userInfo)
 }

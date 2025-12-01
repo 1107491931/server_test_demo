@@ -276,8 +276,8 @@ func GetAllUsers(c *gin.Context) {
 // UserWithPostsResponse 用户及其动态响应数据
 type UserWithPostsResponse struct {
 	UserResponse
-	Posts []dto.PostInfo `json:"posts,omitempty"`
-	Total int            `json:"total,omitempty"`
+	Posts []dto.PostInfo `json:"posts"`
+	Total int            `json:"total"`
 }
 
 // GetUserWithPosts 获取用户信息及其所有动态
@@ -310,7 +310,7 @@ func GetUserWithPosts(c *gin.Context) {
 		pageSize = 10
 	}
 
-	// 获取用户信息
+	// 获取用户信息， 接口中也需要返回用户信息
 	user, err := dao.GetUserByID(userID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

@@ -72,13 +72,14 @@ func main() {
 	{
 		posts := v1.Group("/posts")
 		{
-			posts.POST("", handler.CreatePost)
-			posts.GET("/:post_id", handler.GetPostByID)
-			posts.GET("/user/:user_id", handler.GetPostsByUserID)
-			posts.GET("", handler.GetAllPosts)
-			posts.POST("/:post_id/like", handler.LikePost)
-			posts.POST("/:post_id/forward", handler.ForwardPost)
-			posts.POST("/:post_id/favorite", handler.FavoritePost)
+			posts.POST("", handler.CreatePost) // 创建动态
+			posts.GET("/:post_id", handler.GetPostByID) // 获取动态信息
+			posts.GET("/:post_id/user", handler.GetUserByPostID) // 根据动态ID获取用户信息
+			posts.GET("/user/:user_id", handler.GetPostsByUserID) // 根据用户ID获取动态列表
+			posts.GET("", handler.GetAllPosts) // 获取所有动态
+			posts.POST("/:post_id/like", handler.LikePost) // 点赞动态
+			posts.POST("/:post_id/forward", handler.ForwardPost) // 转发动态
+			posts.POST("/:post_id/favorite", handler.FavoritePost) // 收藏动态
 		}
 	}
 
