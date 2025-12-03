@@ -190,13 +190,13 @@ curl -s http://localhost:8082/api/v1/posts/1/user | jq '.'
 curl -s http://api.staging.myapp.com/api/v1/posts/1/user | jq '.'
 ```
 ## Dock镜像构建
-参考文档`a-docs/Docker_Build_More_Service.md`
+参考文档`a-docs/Docker构建多服务镜像.md`
 - 包含手动构建、docker-compose构建
 - 支持设置版本号
 - 介绍了单个镜像启动、多个镜像同时启动
 
 ## Swggger
-参考`a-docs/Swagger_Integration.md`
+参考`a-docs/Swagger集成.md`
 - 是单个服务的配置，每个服务单独配置，会产生各个服务的Swagger文档
 - 执行命令：`swag init --parseDependency --parseInternal` 构建Swagger，因为服务依赖了外部服务代码common
 - 用户服务或镜像启动后，就可以访问Swagger页面了：
