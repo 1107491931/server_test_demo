@@ -1,6 +1,7 @@
 package main
 
 import (
+	"common/middleware" // 速率限制中间件
 	"fmt"
 	"log"
 	"os"
@@ -65,18 +66,29 @@ func main() {
 	// 7. 初始化 Gin 路由
 	r := gin.Default()
 
-	// 健康检查
+	// 健康检查（不限流）
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	// API路由组
+	// 使用全局限流器：每秒10个请求，突发20个
+	globalLimiter := middleware.GetGlobalRateLimiter(10, 20)
+
+	// API路由组 - 应用全局速率限制
 	v1 := r.Group("/api/v1")
+	v1.Use(globalLimiter.Middleware())
 	{
 		users := v1.Group("/users")
 		{
-			users.POST("/register", handler.Register)              // 注册用户
-			users.POST("/login", handler.Login)                    // 登录
+			// 注册和登录接口 - 更严格的限流：每秒2个请求，突发5个
+			authGroup := users.Group("")
+			authGroup.Use(middleware.RateLimit(2, 5))
+			{
+				authGroup.POST("/register", handler.Register) // 注册用户
+				authGroup.POST("/login", handler.Login)       // 登录
+			}
+
+			// 查询接口 - 使用默认的全局限流
 			users.GET("/:user_id", handler.GetUserByID)            // 获取用户信息
 			users.GET("/:user_id/posts", handler.GetUserWithPosts) // 根据用户ID获取用户信息及其所有动态
 			users.GET("/phone/:phone", handler.GetUserByPhone)     // 根据手机号获取用户信息

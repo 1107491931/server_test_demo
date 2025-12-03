@@ -5,8 +5,9 @@ go 1.24.0
 toolchain go1.24.3
 
 require (
-	github.com/gin-gonic/gin v1.9.1
-	github.com/go-resty/resty/v2 v2.11.0
+	github.com/gin-gonic/gin v1.9.1 // Web 框架
+	github.com/go-resty/resty/v2 v2.11.0 // HTTP 客户端
+	golang.org/x/time v0.14.0 // 速率限制库
 )
 
 require (
@@ -32,7 +33,6 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
-	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

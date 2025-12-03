@@ -223,3 +223,9 @@ docker-compose.yml中ports: "8082:8082"的含义：
 - main.go中监听的端口号，其实就是容器内部服务的端口号， 也用于在不同微服务之间进行通信使用
 
 服务器运行服务时，两个服务的端口不能相同，否则在运行第二个服务时会报错。
+
+# V2.0.1
+在V2.0.1基础上补充的功能
+- 速率限制， 防止暴力请求数据， 参考文档 `a-docs/请求速率限制.md`
+- common模块中增加rete_limiter.go
+- user-service、post-service中的main.go中增加引用，设置API的请求速率

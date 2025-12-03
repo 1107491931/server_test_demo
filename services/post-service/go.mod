@@ -1,6 +1,8 @@
 module post-service
 
-go 1.21
+go 1.24.0
+
+toolchain go1.24.3
 
 require (
 	common v0.0.0
@@ -38,6 +40,7 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
