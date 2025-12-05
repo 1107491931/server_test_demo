@@ -1,4 +1,17 @@
 这是一个简单的 Go 语言测试项目，用于演示多环境部署的流程。
+# v2.0.2
+- 所有接口改成POST请求
+- common模块定义所以依赖库版本，各个服务使用common中定义的版本，避免版本不一致
+- 添加了请求/响应拦截器， 用于记录请求/响应信息，参考文档 `a-docs/请求响应拦截器中间件.md`
+- 增加token相关内容，参考文档 `a-docs/JWT认证系统集成指南.md`
+
+# V2.0.1
+在V2.0.1基础上补充的功能
+- 速率限制， 防止暴力请求数据， 参考文档 `a-docs/请求速率限制.md`
+- common模块中增加rete_limiter.go
+- user-service、post-service中的main.go中增加引用，设置API的请求速率
+
+
 # V2.0.0
 项目采用了微服务架构，有两个微服务：登录注册模块、发布动态模块。
 示例中的`http://localhost:8082`都可以替代为 `http://api.staging.myapp.com`
@@ -223,9 +236,3 @@ docker-compose.yml中ports: "8082:8082"的含义：
 - main.go中监听的端口号，其实就是容器内部服务的端口号， 也用于在不同微服务之间进行通信使用
 
 服务器运行服务时，两个服务的端口不能相同，否则在运行第二个服务时会报错。
-
-# V2.0.1
-在V2.0.1基础上补充的功能
-- 速率限制， 防止暴力请求数据， 参考文档 `a-docs/请求速率限制.md`
-- common模块中增加rete_limiter.go
-- user-service、post-service中的main.go中增加引用，设置API的请求速率

@@ -6,12 +6,22 @@ import (
 	"user-service/dao"
 	"user-service/model"
 
+	"common/auth"
 	"common/dto"
+	"common/middleware"
 	"common/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+// tokenManager 全局TokenManager实例
+var tokenManager *auth.TokenManager
+
+// SetTokenManager 设置TokenManager
+func SetTokenManager(tm *auth.TokenManager) {
+	tokenManager = tm
+}
 
 // RegisterRequest 注册请求参数
 type RegisterRequest struct {
@@ -25,6 +35,17 @@ type RegisterRequest struct {
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
+}
+
+// RefreshTokenRequest 刷新Token请求参数
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
+
+// LogoutRequest 登出请求参数
+type LogoutRequest struct {
+	AccessToken  string `json:"accessToken" binding:"required"`
+	RefreshToken string `json:"refreshToken" binding:"required"`
 }
 
 // BatchGetUsersRequest 批量获取用户请求参数
@@ -109,7 +130,20 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessWithMessage(c, "注册成功", toUserResponse(&user))
+	// 生成Token
+	tokenPair, err := tokenManager.GenerateTokenPair(user.ID, user.Username, user.Email)
+	if err != nil {
+		utils.InternalServerError(c, "Failed to generate token")
+		return
+	}
+
+	utils.SuccessWithMessage(c, "注册成功", gin.H{
+		"user":         toUserResponse(&user),
+		"accessToken":  tokenPair.AccessToken,
+		"refreshToken": tokenPair.RefreshToken,
+		"expiresIn":    tokenPair.ExpiresIn,
+		"refreshIn":    tokenPair.RefreshIn,
+	})
 }
 
 // Login 用户登录
@@ -144,13 +178,20 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// TODO: 生成JWT Token
-	response := gin.H{
-		"user":  toUserResponse(user),
-		"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", // 示例token
+	// 生成Token
+	tokenPair, err := tokenManager.GenerateTokenPair(user.ID, user.Username, user.Email)
+	if err != nil {
+		utils.InternalServerError(c, "Failed to generate token")
+		return
 	}
 
-	utils.SuccessWithMessage(c, "登录成功", response)
+	utils.SuccessWithMessage(c, "登录成功", gin.H{
+		"user":         toUserResponse(user),
+		"accessToken":  tokenPair.AccessToken,
+		"refreshToken": tokenPair.RefreshToken,
+		"expiresIn":    tokenPair.ExpiresIn,
+		"refreshIn":    tokenPair.RefreshIn,
+	})
 }
 
 // GetUserByID 根据用户ID获取用户信息
@@ -333,4 +374,65 @@ func GetUserWithPosts(c *gin.Context) {
 	}
 
 	utils.Success(c, response)
+}
+
+// RefreshToken 刷新AccessToken
+// @Summary      刷新AccessToken
+// @Description  使用RefreshToken获取新的AccessToken和RefreshToken
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        request body RefreshTokenRequest true "RefreshToken"
+// @Success      200  {object}  utils.Response
+// @Router       /api/v1/users/refresh [post]
+func RefreshToken(c *gin.Context) {
+	var req RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+
+	// 使用RefreshToken生成新的Token对
+	tokenPair, err := tokenManager.RefreshAccessToken(req.RefreshToken)
+	if err != nil {
+		utils.Unauthorized(c, "Invalid or expired refresh token")
+		return
+	}
+
+	utils.SuccessWithMessage(c, "Token刷新成功", tokenPair)
+}
+
+// Logout 用户登出
+// @Summary      用户登出
+// @Description  撤销用户的AccessToken和RefreshToken
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        request body LogoutRequest true "Token信息"
+// @Success      200  {object}  utils.Response
+// @Router       /api/v1/users/logout [post]
+func Logout(c *gin.Context) {
+	var req LogoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+
+	// 获取当前用户信息（可选，用于日志记录）
+	userID, _ := middleware.GetUserID(c)
+	username, _ := middleware.GetUsername(c)
+
+	// 撤销Token
+	ctx := c.Request.Context()
+	if err := tokenManager.Logout(ctx, req.AccessToken, req.RefreshToken); err != nil {
+		utils.InternalServerError(c, "Failed to logout")
+		return
+	}
+
+	// 记录登出日志
+	if userID != 0 {
+		fmt.Printf("User %s (ID: %d) logged out successfully\n", username, userID)
+	}
+
+	utils.SuccessWithMessage(c, "登出成功", nil)
 }
