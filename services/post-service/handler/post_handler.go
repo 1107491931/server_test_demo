@@ -6,7 +6,6 @@ import (
 	"post-service/client"
 	"post-service/dao"
 	"post-service/model"
-	"strconv"
 	"time"
 
 	"common/dto"
@@ -18,22 +17,44 @@ import (
 
 // CreatePostRequest 创建动态请求参数
 type CreatePostRequest struct {
-	UserID  uint     `json:"user_id" binding:"required"`
+	UserID  uint     `json:"userId" binding:"required"`
 	Content string   `json:"content" binding:"required"`
 	Images  []string `json:"images"`
 }
 
+// GetPostByIDRequest 根据ID获取动态请求参数
+type GetPostByIDRequest struct {
+	PostID uint `json:"postId" binding:"required"`
+}
+
+// GetPostsByUserIDRequest 根据用户ID获取动态列表请求参数
+type GetPostsByUserIDRequest struct {
+	UserID   uint `json:"userId" binding:"required"`
+	Page     int  `json:"page"`
+	PageSize int  `json:"pageSize"`
+}
+
+// GetAllPostsRequest 获取所有动态请求参数
+type GetAllPostsRequest struct {
+	Page     int `json:"page"`
+	PageSize int `json:"pageSize"`
+}
+
+// GetUserByPostIDRequest 根据动态ID获取用户请求参数
+type GetUserByPostIDRequest struct {
+	PostID uint `json:"postId" binding:"required"`
+}
 
 // PostResponse 动态响应数据
 type PostResponse struct {
-	PostID        uint     `json:"post_id"`
-	UserID        uint     `json:"user_id"`
+	PostID        uint     `json:"postId"`
+	UserID        uint     `json:"userId"`
 	Content       string   `json:"content"`
 	Images        []string `json:"images"`
-	LikeCount     int      `json:"like_count"`
-	ForwardCount  int      `json:"forward_count"`
-	FavoriteCount int      `json:"favorite_count"`
-	CreatedAt     string   `json:"created_at"`
+	LikeCount     int      `json:"likeCount"`
+	ForwardCount  int      `json:"forwardCount"`
+	FavoriteCount int      `json:"favoriteCount"`
+	CreatedAt     string   `json:"createdAt"`
 }
 
 // toPostResponse 将Post模型转换为PostResponse
@@ -88,20 +109,20 @@ func CreatePost(c *gin.Context) {
 // @Summary      获取动态详情
 // @Description  根据动态ID获取动态详情
 // @Tags         posts
+// @Accept       json
 // @Produce      json
-// @Param        post_id path int true "动态ID"
+// @Param        request body GetPostByIDRequest true "动态ID"
 // @Success      200  {object}  utils.Response
-// @Router       /api/v1/posts/{post_id} [get]
+// @Router       /api/v1/posts/get_by_id [post]
 func GetPostByID(c *gin.Context) {
-	postIDParam := c.Param("post_id")
-	var postID uint
-	if _, err := fmt.Sscanf(postIDParam, "%d", &postID); err != nil {
-		utils.BadRequest(c, "Invalid post ID")
+	var req GetPostByIDRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
 		return
 	}
 
 	// 获取动态信息
-	post, err := dao.GetPostByID(postID)
+	post, err := dao.GetPostByID(req.PostID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			utils.NotFound(c, "Post not found")
@@ -121,24 +142,21 @@ func GetPostByID(c *gin.Context) {
 // @Summary      获取用户的所有动态
 // @Description  根据用户ID获取该用户的所有动态（分页，供服务间调用）
 // @Tags         posts
+// @Accept       json
 // @Produce      json
-// @Param        user_id path int true "用户ID"
-// @Param        page query int false "页码" default(1)
-// @Param        page_size query int false "每页数量" default(10)
+// @Param        request body GetPostsByUserIDRequest true "用户ID和分页参数"
 // @Success      200  {object}  utils.Response
-// @Router       /api/v1/posts/user/{user_id} [get]
+// @Router       /api/v1/posts/get_by_user_id [post]
 func GetPostsByUserID(c *gin.Context) {
-	userIDParam := c.Param("user_id")
-	var userID uint
-	if _, err := fmt.Sscanf(userIDParam, "%d", &userID); err != nil {
-		utils.BadRequest(c, "Invalid user ID")
+	var req GetPostsByUserIDRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
 		return
 	}
 
-	// 获取分页参数
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
-
+	// 设置默认分页参数
+	page := req.Page
+	pageSize := req.PageSize
 	if page < 1 {
 		page = 1
 	}
@@ -147,7 +165,7 @@ func GetPostsByUserID(c *gin.Context) {
 	}
 
 	// 获取动态列表
-	posts, total, err := dao.GetPostsByUserID(userID, page, pageSize)
+	posts, total, err := dao.GetPostsByUserID(req.UserID, page, pageSize)
 	if err != nil {
 		utils.InternalServerError(c, "Database error")
 		return
@@ -161,10 +179,10 @@ func GetPostsByUserID(c *gin.Context) {
 
 	// 组装响应数据
 	result := gin.H{
-		"total":     total,
-		"page":      page,
-		"page_size": pageSize,
-		"posts":     responses,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"posts":    responses,
 	}
 
 	utils.Success(c, result)
@@ -174,16 +192,22 @@ func GetPostsByUserID(c *gin.Context) {
 // @Summary      获取所有动态
 // @Description  获取所有动态（分页）
 // @Tags         posts
+// @Accept       json
 // @Produce      json
-// @Param        page query int false "页码" default(1)
-// @Param        page_size query int false "每页数量" default(10)
+// @Param        request body GetAllPostsRequest true "分页参数"
 // @Success      200  {object}  utils.Response
-// @Router       /api/v1/posts [get]
+// @Router       /api/v1/posts/get_all [post]
 func GetAllPosts(c *gin.Context) {
-	// 获取分页参数
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	var req GetAllPostsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// 如果没有传参数，使用默认值
+		req.Page = 1
+		req.PageSize = 10
+	}
 
+	// 设置默认分页参数
+	page := req.Page
+	pageSize := req.PageSize
 	if page < 1 {
 		page = 1
 	}
@@ -206,10 +230,10 @@ func GetAllPosts(c *gin.Context) {
 
 	// 组装响应数据
 	result := gin.H{
-		"total":     total,
-		"page":      page,
-		"page_size": pageSize,
-		"posts":     responses,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"posts":    responses,
 	}
 
 	utils.Success(c, result)
@@ -252,8 +276,8 @@ func LikePost(c *gin.Context) {
 	post, _ = dao.GetPostByID(postID)
 
 	result := gin.H{
-		"post_id":    post.ID,
-		"like_count": post.LikeCount,
+		"postId":    post.ID,
+		"likeCount": post.LikeCount,
 	}
 
 	utils.SuccessWithMessage(c, "点赞成功", result)
@@ -296,8 +320,8 @@ func ForwardPost(c *gin.Context) {
 	post, _ = dao.GetPostByID(postID)
 
 	result := gin.H{
-		"post_id":       post.ID,
-		"forward_count": post.ForwardCount,
+		"postId":       post.ID,
+		"forwardCount": post.ForwardCount,
 	}
 
 	utils.SuccessWithMessage(c, "转发成功", result)
@@ -340,8 +364,8 @@ func FavoritePost(c *gin.Context) {
 	post, _ = dao.GetPostByID(postID)
 
 	result := gin.H{
-		"post_id":        post.ID,
-		"favorite_count": post.FavoriteCount,
+		"postId":        post.ID,
+		"favoriteCount": post.FavoriteCount,
 	}
 
 	utils.SuccessWithMessage(c, "收藏成功", result)
@@ -351,20 +375,20 @@ func FavoritePost(c *gin.Context) {
 // @Summary      根据动态ID获取用户信息
 // @Description  根据动态ID获取该动态发布者的用户信息
 // @Tags         posts
+// @Accept       json
 // @Produce      json
-// @Param        post_id path int true "动态ID"
+// @Param        request body GetUserByPostIDRequest true "动态ID"
 // @Success      200  {object}  utils.Response
-// @Router       /api/v1/posts/{post_id}/user [get]
+// @Router       /api/v1/posts/get_user_by_post_id [post]
 func GetUserByPostID(c *gin.Context) {
-	postIDParam := c.Param("post_id")
-	var postID uint
-	if _, err := fmt.Sscanf(postIDParam, "%d", &postID); err != nil {
-		utils.BadRequest(c, "Invalid post ID")
+	var req GetUserByPostIDRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
 		return
 	}
 
 	// 获取动态信息
-	post, err := dao.GetPostByID(postID)
+	post, err := dao.GetPostByID(req.PostID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			utils.NotFound(c, "Post not found")

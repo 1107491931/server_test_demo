@@ -89,11 +89,11 @@ func main() {
 			}
 
 			// 查询接口 - 使用默认的全局限流
-			users.GET("/:user_id", handler.GetUserByID)            // 获取用户信息
-			users.GET("/:user_id/posts", handler.GetUserWithPosts) // 根据用户ID获取用户信息及其所有动态
-			users.GET("/phone/:phone", handler.GetUserByPhone)     // 根据手机号获取用户信息
-			users.POST("/batch", handler.BatchGetUsers)            // 批量获取用户信息
-			users.GET("", handler.GetAllUsers)                     // 获取所有用户信息
+			users.POST("/get_by_id", handler.GetUserByID)           // 获取用户信息
+			users.POST("/get_with_posts", handler.GetUserWithPosts) // 根据用户ID获取用户信息及其所有动态
+			users.POST("/get_by_email", handler.GetUserByEmail)     // 根据邮箱获取用户信息
+			users.POST("/batch", handler.BatchGetUsers)             // 批量获取用户信息
+			users.POST("/get_all", handler.GetAllUsers)             // 获取所有用户信息
 		}
 	}
 

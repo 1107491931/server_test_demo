@@ -94,10 +94,10 @@ func main() {
 			}
 
 			// 查询接口 - 使用默认的全局限流
-			posts.GET("/:post_id", handler.GetPostByID)           // 获取动态信息
-			posts.GET("/:post_id/user", handler.GetUserByPostID)  // 根据动态ID获取用户信息
-			posts.GET("/user/:user_id", handler.GetPostsByUserID) // 根据用户ID获取动态列表
-			posts.GET("", handler.GetAllPosts)                    // 获取所有动态
+			posts.POST("/get_by_id", handler.GetPostByID)               // 获取动态信息
+			posts.POST("/get_user_by_post_id", handler.GetUserByPostID) // 根据动态ID获取用户信息
+			posts.POST("/get_by_user_id", handler.GetPostsByUserID)     // 根据用户ID获取动态列表
+			posts.POST("/get_all", handler.GetAllPosts)                 // 获取所有动态
 		}
 	}
 

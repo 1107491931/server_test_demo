@@ -2,13 +2,12 @@ package dto
 
 // PostInfo 动态信息DTO（用于服务间传输）
 type PostInfo struct {
-	PostID        uint     `json:"post_id"`
-	UserID        uint     `json:"user_id"`
+	PostID        uint     `json:"postId"`
+	UserID        uint     `json:"userId"`
 	Content       string   `json:"content"`
 	Images        []string `json:"images"`
-	LikeCount     int      `json:"like_count"`
-	ForwardCount  int      `json:"forward_count"`
-	FavoriteCount int      `json:"favorite_count"`
-	CreatedAt     string   `json:"created_at"`
+	LikeCount     int      `json:"likeCount"`
+	ForwardCount  int      `json:"forwardCount"`
+	FavoriteCount int      `json:"favoriteCount"`
+	CreatedAt     string   `json:"createdAt"`
 }
-

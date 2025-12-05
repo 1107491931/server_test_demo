@@ -43,10 +43,14 @@ func (c *UserClient) GetUserInfo(ctx context.Context, userID uint) (<-chan *dto.
 		defer close(resultChan)
 		defer close(errChan)
 
-		path := fmt.Sprintf("/api/v1/users/%d", userID)
+		path := "/api/v1/users/get_by_id"
+		requestData := map[string]interface{}{
+			"userId": userID,
+		}
+
 		var response dto.UserInfoResponse
 
-		if err := c.httpClient.GetJSONWithContext(ctx, path, &response); err != nil {
+		if err := c.httpClient.PostJSONWithContext(ctx, path, requestData, &response); err != nil {
 			errChan <- err
 			return
 		}
@@ -80,7 +84,7 @@ func (c *UserClient) BatchGetUserInfo(ctx context.Context, userIDs []uint) (<-ch
 
 		path := "/api/v1/users/batch"
 		requestData := map[string]interface{}{
-			"user_ids": userIDs,
+			"userIds": userIDs,
 		}
 
 		var response dto.UserListResponse

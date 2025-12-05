@@ -20,9 +20,9 @@ type UserListResponse struct {
 
 // PostListData 动态列表数据
 type PostListData struct {
-	Total    int       `json:"total"`
-	Page     int       `json:"page"`
-	PageSize int       `json:"page_size"`
+	Total    int        `json:"total"`
+	Page     int        `json:"page"`
+	PageSize int        `json:"pageSize"`
 	Posts    []PostInfo `json:"posts"`
 }
 
@@ -31,4 +31,3 @@ type PostListResponse struct {
 	BaseResponse
 	Data PostListData `json:"data"`
 }
-

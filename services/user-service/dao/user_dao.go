@@ -19,16 +19,6 @@ func GetUserByID(userID uint) (*model.User, error) {
 	return &user, nil
 }
 
-// GetUserByPhone 根据手机号获取用户信息
-func GetUserByPhone(phone string) (*model.User, error) {
-	var user model.User
-	err := DB.Where("phone = ?", phone).First(&user).Error
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
 // GetUserByEmail 根据邮箱获取用户信息
 func GetUserByEmail(email string) (*model.User, error) {
 	var user model.User

@@ -34,7 +34,14 @@ func (c *PostClient) GetUserPosts(userID uint, page, pageSize int) ([]dto.PostIn
 
 // GetUserPostsWithContext 获取用户的所有动态（支持Context和自定义超时）
 func (c *PostClient) GetUserPostsWithContext(ctx context.Context, userID uint, page, pageSize int) ([]dto.PostInfo, int, error) {
-	path := fmt.Sprintf("/api/v1/posts/user/%d?page=%d&page_size=%d", userID, page, pageSize)
+	path := "/api/v1/posts/get_by_user_id"
+
+	// 构建请求体
+	requestBody := map[string]interface{}{
+		"userId":   userID,
+		"page":     page,
+		"pageSize": pageSize,
+	}
 
 	var response dto.PostListResponse
 
@@ -45,7 +52,7 @@ func (c *PostClient) GetUserPostsWithContext(ctx context.Context, userID uint, p
 		defer cancel()
 	}
 
-	if err := c.httpClient.GetJSONWithContext(ctx, path, &response); err != nil {
+	if err := c.httpClient.PostJSONWithContext(ctx, path, requestBody, &response); err != nil {
 		return nil, 0, err
 	}
 
