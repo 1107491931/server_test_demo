@@ -440,6 +440,18 @@ REDIS_PORT=6379 \
 REDIS_PASSWORD= \
 REDIS_DB=0 \
 go run main.go
+
+# 启动post-service
+ENV=staging \
+SERVER_PORT=8082 \
+DB_DSN=dbs/staging/post_staging.db \
+JWT_SECRET_KEY=my-super-secret-key-change-in-production \
+JWT_ISSUER=user-service \
+REDIS_HOST=localhost \
+REDIS_PORT=6379 \
+REDIS_PASSWORD= \
+REDIS_DB=0 \
+go run main.go
 ```
 
 ## 故障排查

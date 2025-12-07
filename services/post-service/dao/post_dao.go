@@ -92,12 +92,6 @@ func DecrementLikeCount(postID uint) error {
 		UpdateColumn("like_count", gorm.Expr("like_count - ?", 1)).Error
 }
 
-// IncrementForwardCount 增加转发数
-func IncrementForwardCount(postID uint) error {
-	return DB.Model(&model.Post{}).Where("id = ?", postID).
-		UpdateColumn("forward_count", gorm.Expr("forward_count + ?", 1)).Error
-}
-
 // IncrementFavoriteCount 增加收藏数
 func IncrementFavoriteCount(postID uint) error {
 	return DB.Model(&model.Post{}).Where("id = ?", postID).
@@ -108,4 +102,79 @@ func IncrementFavoriteCount(postID uint) error {
 func DecrementFavoriteCount(postID uint) error {
 	return DB.Model(&model.Post{}).Where("id = ?", postID).
 		UpdateColumn("favorite_count", gorm.Expr("favorite_count - ?", 1)).Error
+}
+
+// IncrementShareCount 增加分享数
+func IncrementShareCount(postID uint) error {
+	return DB.Model(&model.Post{}).Where("id = ?", postID).
+		UpdateColumn("share_count", gorm.Expr("share_count + ?", 1)).Error
+}
+
+// DecrementShareCount 减少分享数
+func DecrementShareCount(postID uint) error {
+	return DB.Model(&model.Post{}).Where("id = ?", postID).
+		UpdateColumn("share_count", gorm.Expr("share_count - ?", 1)).Error
+}
+
+// IncrementDislikeCount 增加踩数
+func IncrementDislikeCount(postID uint) error {
+	return DB.Model(&model.Post{}).Where("id = ?", postID).
+		UpdateColumn("dislike_count", gorm.Expr("dislike_count + ?", 1)).Error
+}
+
+// DecrementDislikeCount 减少踩数
+func DecrementDislikeCount(postID uint) error {
+	return DB.Model(&model.Post{}).Where("id = ?", postID).
+		UpdateColumn("dislike_count", gorm.Expr("dislike_count - ?", 1)).Error
+}
+
+// CheckUserLikedPost 检查用户是否点赞了某个动态
+func CheckUserLikedPost(userID, postID uint) (bool, error) {
+	var count int64
+	err := DB.Model(&model.Like{}).Where("user_id = ? AND post_id = ?", userID, postID).Count(&count).Error
+	return count > 0, err
+}
+
+// CheckUserDislikedPost 检查用户是否踩了某个动态
+func CheckUserDislikedPost(userID, postID uint) (bool, error) {
+	var count int64
+	err := DB.Model(&model.Dislike{}).Where("user_id = ? AND post_id = ?", userID, postID).Count(&count).Error
+	return count > 0, err
+}
+
+// CheckUserFavoritedPost 检查用户是否收藏了某个动态
+func CheckUserFavoritedPost(userID, postID uint) (bool, error) {
+	var count int64
+	err := DB.Model(&model.Favorite{}).Where("user_id = ? AND post_id = ?", userID, postID).Count(&count).Error
+	return count > 0, err
+}
+
+// CreateLike 创建点赞记录
+func CreateLike(like *model.Like) error {
+	return DB.Create(like).Error
+}
+
+// CreateFavorite 创建收藏记录
+func CreateFavorite(favorite *model.Favorite) error {
+	return DB.Create(favorite).Error
+}
+
+// DeleteLike 删除点赞记录
+func DeleteLike(userID, postID uint) error {
+	return DB.Where("user_id = ? AND post_id = ?", userID, postID).Delete(&model.Like{}).Error
+}
+
+// DeleteFavorite 删除收藏记录
+func DeleteFavorite(userID, postID uint) error {
+	return DB.Where("user_id = ? AND post_id = ?", userID, postID).Delete(&model.Favorite{}).Error
+}
+
+// CreateDislike 创建踩记录
+func CreateDislike(dislike *model.Dislike) error {
+	return DB.Create(dislike).Error
+}
+
+// DeleteDislike 删除踩记录
+func DeleteDislike(userID, postID uint) error {
+	return DB.Where("user_id = ? AND post_id = ?", userID, postID).Delete(&model.Dislike{}).Error
 }

@@ -4,7 +4,6 @@ import (
 	"common/auth"
 	"fmt"
 	"log"
-	"time"
 	"user-service/handler"
 
 	"github.com/redis/go-redis/v9"
@@ -31,8 +30,8 @@ func InitRedisAndAuth() (*redis.Client, *auth.TokenManager) {
 	// 初始化TokenManager
 	tokenConfig := &auth.TokenConfig{
 		SecretKey:            GetEnv("JWT_SECRET_KEY", "default-secret-key-change-in-production"),
-		AccessTokenDuration:  24 * time.Hour,      // 24小时
-		RefreshTokenDuration: 15 * 24 * time.Hour, // 15天
+		AccessTokenDuration:  auth.AccessTokenDuration, // 使用公共常量
+		RefreshTokenDuration: auth.RefreshTokenDuration, // 使用公共常量
 		Issuer:               GetEnv("JWT_ISSUER", "user-service"),
 	}
 

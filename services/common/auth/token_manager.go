@@ -10,6 +10,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// Token expiration constants
+const (
+	AccessTokenDuration = 24 * time.Hour // AccessToken有效期：24小时
+	// AccessTokenDuration  = 30 * time.Second    // AccessToken有效期：30秒. 用于测试
+	RefreshTokenDuration = 15 * 24 * time.Hour // RefreshToken有效期：15天
+)
+
 // TokenConfig JWT配置
 type TokenConfig struct {
 	SecretKey            string        // JWT密钥
@@ -147,6 +154,11 @@ func (tm *TokenManager) RefreshAccessToken(refreshTokenString string) (*TokenPai
 
 // RevokeToken 撤销Token（加入黑名单）
 func (tm *TokenManager) RevokeToken(ctx context.Context, tokenString string) error {
+	// 如果Redis客户端不可用，返回错误
+	if tm.redisClient == nil {
+		return errors.New("redis client not available")
+	}
+
 	// 解析Token获取过期时间
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(tm.config.SecretKey), nil
@@ -180,6 +192,11 @@ func (tm *TokenManager) RevokeToken(ctx context.Context, tokenString string) err
 
 // IsTokenBlacklisted 检查Token是否在黑名单中
 func (tm *TokenManager) IsTokenBlacklisted(ctx context.Context, tokenString string) (bool, error) {
+	// 如果Redis客户端不可用，返回错误
+	if tm.redisClient == nil {
+		return false, errors.New("redis client not available")
+	}
+
 	key := fmt.Sprintf("blacklist:token:%s", tokenString)
 	exists, err := tm.redisClient.Exists(ctx, key).Result()
 	if err != nil {
@@ -191,13 +208,17 @@ func (tm *TokenManager) IsTokenBlacklisted(ctx context.Context, tokenString stri
 // Logout 用户登出（撤销AccessToken和RefreshToken）
 func (tm *TokenManager) Logout(ctx context.Context, accessToken, refreshToken string) error {
 	// 撤销AccessToken
-	if err := tm.RevokeToken(ctx, accessToken); err != nil {
-		return fmt.Errorf("failed to revoke access token: %w", err)
+	if accessToken != "" {
+		if err := tm.RevokeToken(ctx, accessToken); err != nil {
+			return fmt.Errorf("failed to revoke access token: %w", err)
+		}
 	}
 
 	// 撤销RefreshToken
-	if err := tm.RevokeToken(ctx, refreshToken); err != nil {
-		return fmt.Errorf("failed to revoke refresh token: %w", err)
+	if refreshToken != "" {
+		if err := tm.RevokeToken(ctx, refreshToken); err != nil {
+			return fmt.Errorf("failed to revoke refresh token: %w", err)
+		}
 	}
 
 	return nil

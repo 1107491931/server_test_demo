@@ -33,17 +33,18 @@ func InitRouter(tokenManager *auth.TokenManager) *gin.Engine {
 			createGroup := posts.Group("")
 			createGroup.Use(middleware.RateLimit(3, 5))
 			{
-				createGroup.POST("", handler.CreatePost) // 创建动态
+				createGroup.POST("/create", handler.CreatePost) // 创建动态
 			}
 
-			// 互动接口（点赞、转发、收藏）- 中等限流：每秒5个请求，突发10个
-			interactionGroup := posts.Group("")
-			interactionGroup.Use(middleware.RateLimit(5, 10))
-			{
-				interactionGroup.POST("/:post_id/like", handler.LikePost)         // 点赞动态
-				interactionGroup.POST("/:post_id/forward", handler.ForwardPost)   // 转发动态
-				interactionGroup.POST("/:post_id/favorite", handler.FavoritePost) // 收藏动态
-			}
+			// 互动接口（点赞、转发、收藏、分享）- 中等限流：每秒5个请求，突发10个
+	interactionGroup := posts.Group("")
+interactionGroup.Use(middleware.RateLimit(5, 10))
+{
+	interactionGroup.POST("/like", handler.LikePost)         // 点赞动态
+	interactionGroup.POST("/dislike", handler.DislikePost)   // 踩动态
+	interactionGroup.POST("/favorite", handler.FavoritePost) // 收藏动态
+	interactionGroup.POST("/share", handler.SharePost)       // 分享动态
+}
 
 			// 查询接口 - 使用默认的全局限流
 			posts.POST("/get_by_id", handler.GetPostByID)               // 获取动态信息

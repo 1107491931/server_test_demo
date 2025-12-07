@@ -8,6 +8,7 @@ import (
 
 	"common/client"
 	"common/dto"
+	"common/errs"
 )
 
 // UserClient 用户服务客户端（异步）
@@ -28,7 +29,8 @@ func NewUserClient() *UserClient {
 }
 
 // GetUserInfo 异步获取用户信息，通过channel返回结果（默认5秒超时）
-func (c *UserClient) GetUserInfo(ctx context.Context, userID uint) (<-chan *dto.UserInfo, <-chan error) {
+// headers参数用于传递请求头信息，如Authorization
+func (c *UserClient) GetUserInfo(ctx context.Context, userID uint, headers ...map[string]string) (<-chan *dto.UserInfo, <-chan error) {
 	// 如果没有设置超时，默认5秒超时
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 		var cancel context.CancelFunc
@@ -50,12 +52,12 @@ func (c *UserClient) GetUserInfo(ctx context.Context, userID uint) (<-chan *dto.
 
 		var response dto.UserInfoResponse
 
-		if err := c.httpClient.PostJSONWithContext(ctx, path, requestData, &response); err != nil {
+		if err := c.httpClient.PostJSONWithContext(ctx, path, requestData, &response, headers...); err != nil {
 			errChan <- err
 			return
 		}
 
-		if response.Code != 200 {
+		if response.Code != errs.SUCCESS {
 			errChan <- fmt.Errorf("failed to get user info: %s", response.Message)
 			return
 		}
@@ -67,7 +69,8 @@ func (c *UserClient) GetUserInfo(ctx context.Context, userID uint) (<-chan *dto.
 }
 
 // BatchGetUserInfo 异步批量获取用户信息，通过channel返回结果（默认10秒超时）
-func (c *UserClient) BatchGetUserInfo(ctx context.Context, userIDs []uint) (<-chan map[uint]dto.UserInfo, <-chan error) {
+// headers参数用于传递请求头信息，如Authorization
+func (c *UserClient) BatchGetUserInfo(ctx context.Context, userIDs []uint, headers ...map[string]string) (<-chan map[uint]dto.UserInfo, <-chan error) {
 	// 如果没有设置超时，默认10秒超时（批量请求可能需要更长时间）
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 		var cancel context.CancelFunc
@@ -89,12 +92,12 @@ func (c *UserClient) BatchGetUserInfo(ctx context.Context, userIDs []uint) (<-ch
 
 		var response dto.UserListResponse
 
-		if err := c.httpClient.PostJSONWithContext(ctx, path, requestData, &response); err != nil {
+		if err := c.httpClient.PostJSONWithContext(ctx, path, requestData, &response, headers...); err != nil {
 			errChan <- err
 			return
 		}
 
-		if response.Code != 200 {
+		if response.Code != errs.SUCCESS {
 			errChan <- fmt.Errorf("failed to batch get user info: %s", response.Message)
 			return
 		}

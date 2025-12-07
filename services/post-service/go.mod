@@ -5,11 +5,23 @@ go 1.24.0
 toolchain go1.24.3
 
 require (
+	// 共享模块
 	common v0.0.0
+
+	// Web 框架
 	github.com/gin-gonic/gin v1.9.1
+
+	// Redis 客户端
 	github.com/redis/go-redis/v9 v9.17.2
-	gorm.io/driver/sqlite v1.5.4
+
+	// JWT 认证库
+	github.com/golang-jwt/jwt/v5 v5.3.0
+
+	// GORM 数据库操作库
 	gorm.io/gorm v1.25.5
+
+	// SQLite 数据库驱动
+	gorm.io/driver/sqlite v1.5.4
 )
 
 replace common => ../common

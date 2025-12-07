@@ -100,13 +100,21 @@ func (c *HTTPClient) GetJSONWithContext(ctx context.Context, path string, result
 }
 
 // PostJSONWithContext 发送POST请求并自动反序列化JSON响应（支持Context和超时控制）
-func (c *HTTPClient) PostJSONWithContext(ctx context.Context, path string, data interface{}, result interface{}) error {
-	resp, err := c.client.R().
+func (c *HTTPClient) PostJSONWithContext(ctx context.Context, path string, data interface{}, result interface{}, headers ...map[string]string) error {
+	request := c.client.R().
 		SetContext(ctx).
 		SetBody(data).
 		SetResult(result).
-		SetError(&ErrorResponse{}).
-		Post(path)
+		SetError(&ErrorResponse{})
+
+	// 添加额外的请求头
+	for _, h := range headers {
+		for key, value := range h {
+			request.SetHeader(key, value)
+		}
+	}
+
+	resp, err := request.Post(path)
 
 	if err != nil {
 		// 检查是否是超时错误

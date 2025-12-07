@@ -2,12 +2,14 @@ package handler
 
 import (
 	"fmt"
+	"strings"
 	"user-service/client"
 	"user-service/dao"
 	"user-service/model"
 
 	"common/auth"
 	"common/dto"
+	"common/errs"
 	"common/middleware"
 	"common/utils"
 
@@ -44,8 +46,8 @@ type RefreshTokenRequest struct {
 
 // LogoutRequest 登出请求参数
 type LogoutRequest struct {
-	AccessToken  string `json:"accessToken" binding:"required"`
-	RefreshToken string `json:"refreshToken" binding:"required"`
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
 }
 
 // BatchGetUsersRequest 批量获取用户请求参数
@@ -113,7 +115,7 @@ func Register(c *gin.Context) {
 		return
 	}
 	if existingUser != nil {
-		utils.BadRequest(c, "Email already registered")
+		utils.BusinessError(c, errs.USER_EXISTS, "Email already registered")
 		return
 	}
 
@@ -126,7 +128,7 @@ func Register(c *gin.Context) {
 	}
 
 	if err := dao.CreateUser(&user); err != nil {
-		utils.InternalServerError(c, "Failed to create user")
+		utils.BusinessError(c, errs.USER_CREATE_FAIL, "Failed to create user")
 		return
 	}
 
@@ -165,7 +167,7 @@ func Login(c *gin.Context) {
 	user, err := dao.GetUserByEmail(req.Email)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			utils.Unauthorized(c, "Invalid email or password")
+			utils.BusinessError(c, errs.PASSWORD_INCORRECT, "Invalid email or password")
 			return
 		}
 		utils.InternalServerError(c, "Database error")
@@ -174,7 +176,7 @@ func Login(c *gin.Context) {
 
 	// TODO: 实际项目中应该使用bcrypt比对加密后的密码
 	if user.Password != req.Password {
-		utils.Unauthorized(c, "Invalid email or password")
+		utils.BusinessError(c, errs.PASSWORD_INCORRECT, "Invalid email or password")
 		return
 	}
 
@@ -213,7 +215,7 @@ func GetUserByID(c *gin.Context) {
 	user, err := dao.GetUserByID(req.UserID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			utils.NotFound(c, "User not found")
+			utils.BusinessError(c, errs.USER_NOT_FOUND, "User not found")
 			return
 		}
 		utils.InternalServerError(c, "Database error")
@@ -242,7 +244,7 @@ func GetUserByEmail(c *gin.Context) {
 	user, err := dao.GetUserByEmail(req.Email)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			utils.NotFound(c, "User not found")
+			utils.BusinessError(c, errs.USER_NOT_FOUND, "User not found")
 			return
 		}
 		utils.InternalServerError(c, "Database error")
@@ -349,7 +351,7 @@ func GetUserWithPosts(c *gin.Context) {
 	user, err := dao.GetUserByID(req.UserID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			utils.NotFound(c, "User not found")
+			utils.BusinessError(c, errs.USER_NOT_FOUND, "User not found")
 			return
 		}
 		utils.InternalServerError(c, "Database error")
@@ -395,7 +397,7 @@ func RefreshToken(c *gin.Context) {
 	// 使用RefreshToken生成新的Token对
 	tokenPair, err := tokenManager.RefreshAccessToken(req.RefreshToken)
 	if err != nil {
-		utils.Unauthorized(c, "Invalid or expired refresh token")
+		utils.BusinessError(c, errs.TOKEN_REVOKED, "Invalid or expired refresh token")
 		return
 	}
 
@@ -408,13 +410,41 @@ func RefreshToken(c *gin.Context) {
 // @Tags         users
 // @Accept       json
 // @Produce      json
-// @Param        request body LogoutRequest true "Token信息"
+// @Param        request body LogoutRequest false "Token信息（可选，如不提供则从Authorization头获取accessToken）"
 // @Success      200  {object}  utils.Response
 // @Router       /api/v1/users/logout [post]
 func Logout(c *gin.Context) {
 	var req LogoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+	var accessToken string
+
+	// 尝试解析请求体（如果有的话）
+	err := c.ShouldBindJSON(&req)
+	if err == nil {
+		// 请求体解析成功，使用请求体中的Token
+		accessToken = req.AccessToken
+	} else if err.Error() != "EOF && err.Error() != \"unexpected end of JSON input\"" {
+		// 请求体存在但格式错误
+		// 注意：gin的ShouldBindJSON在空body时可能会报EOF或unexpected end of JSON input
+		if err.Error() != "EOF" {
+			utils.BadRequest(c, err.Error())
+			return
+		}
+	}
+
+	// 如果请求体中没有提供accessToken，尝试从Authorization头获取
+	if accessToken == "" {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				req.AccessToken = parts[1]
+			}
+		}
+	}
+
+	// 如果仍然没有accessToken，返回错误
+	if req.AccessToken == "" {
+		utils.BadRequest(c, "Missing access token")
 		return
 	}
 

@@ -2,6 +2,9 @@ package middleware
 
 import (
 	"common/auth"
+	"common/errs"
+	"common/utils"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -13,10 +16,7 @@ func JWTAuth(tokenManager *auth.TokenManager) gin.HandlerFunc {
 		// 从请求头获取Token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(401, gin.H{
-				"code":    401,
-				"message": "Missing authorization header",
-			})
+			utils.Error(c, http.StatusOK, errs.UNAUTHORIZED, "Missing authorization header")
 			c.Abort()
 			return
 		}
@@ -24,10 +24,7 @@ func JWTAuth(tokenManager *auth.TokenManager) gin.HandlerFunc {
 		// 检查Bearer前缀
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(401, gin.H{
-				"code":    401,
-				"message": "Invalid authorization header format",
-			})
+			utils.Error(c, http.StatusOK, errs.UNAUTHORIZED, "Invalid authorization header format")
 			c.Abort()
 			return
 		}
@@ -37,11 +34,7 @@ func JWTAuth(tokenManager *auth.TokenManager) gin.HandlerFunc {
 		// 验证Token
 		claims, err := tokenManager.ValidateToken(tokenString)
 		if err != nil {
-			c.JSON(401, gin.H{
-				"code":    401,
-				"message": "Invalid or expired token",
-				"error":   err.Error(),
-			})
+			utils.Error(c, http.StatusOK, errs.TOKEN_REVOKED, "Invalid or expired token")
 			c.Abort()
 			return
 		}

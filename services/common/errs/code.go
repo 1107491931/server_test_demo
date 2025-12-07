@@ -1,0 +1,35 @@
+package errs
+
+const (
+	SUCCESS = 0
+	ERROR   = 1
+
+	// Common Errors (10000 - 19999)
+	INVALID_PARAMS    = 10001
+	UNAUTHORIZED      = 10002
+	NOT_FOUND         = 10003
+	SERVER_ERROR      = 10004
+	TOKEN_ERROR       = 10005
+	TOKEN_TIMEOUT     = 10006
+	TOKEN_REVOKED     = 10007
+	TOO_MANY_REQUESTS = 10008
+
+	// User Service Errors (20000 - 29999)
+	USER_EXISTS        = 20001
+	USER_NOT_FOUND     = 20002
+	PASSWORD_INCORRECT = 20003
+	USER_CREATE_FAIL   = 20004
+	USER_UPDATE_FAIL   = 20005
+
+	// Post Service Errors (30000 - 39999)
+	POST_NOT_FOUND = 30001
+)
+
+const (
+	HTTP_OK                    = 200
+	HTTP_BAD_REQUEST           = 400
+	HTTP_UNAUTHORIZED          = 401
+	HTTP_FORBIDDEN             = 403
+	HTTP_NOT_FOUND             = 404
+	HTTP_INTERNAL_SERVER_ERROR = 500
+)

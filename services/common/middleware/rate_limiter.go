@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"common/errs"
+	"common/utils"
 	"net/http"
 	"strconv"
 	"sync"
@@ -137,11 +139,8 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 			c.Header("X-RateLimit-Remaining", "0")
 			c.Header("Retry-After", "1")
 
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-				"code":        http.StatusTooManyRequests,
-				"message":     "请求过于频繁，请稍后再试",
-				"retry_after": 1,
-			})
+			utils.Error(c, http.StatusTooManyRequests, errs.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试")
+			c.Abort()
 			return
 		}
 
