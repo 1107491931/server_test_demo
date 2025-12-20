@@ -32,11 +32,6 @@ go.work
 *.log
 logs/
 
-# Environment variables (可能包含敏感信息)
-.env
-.env.*
-!*.env.example
-
 # Database files
 *.db
 *.sqlite
