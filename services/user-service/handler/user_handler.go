@@ -103,6 +103,8 @@ func toUserResponse(user *model.User) UserResponse {
 // @Router       /api/v1/users/register [post]
 func Register(c *gin.Context) {
 	var req RegisterRequest
+	// ShouldBindJSON 尝试将请求的 JSON 正文解析到 req 结构体中
+	// 错误处理：如果 JSON 格式不正确\如果缺少必填字段\如果字段格式不符合要求
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
