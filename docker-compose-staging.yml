@@ -1,21 +1,28 @@
+# version 是 Docker Compose 文件格式的版本号，支持特定的功能和语法
 version: '3.8'
 
 # 使用环境变量 IMAGE_TAG 指定镜像版本号，默认使用 latest
-# 运行命令: IMAGE_TAG=v1.0.0 docker-compose -f docker-compose-staging.yml up -d
+# 运行部署命令: IMAGE_TAG=v1.0.0 docker-compose -f docker-compose-staging.yml up -d
 
+# 定义所有要运行的容器服务，每个服务对应一个容器
 services:
   user-service:
-    image: user-service:${IMAGE_TAG:-latest}
+    image: user-service:${IMAGE_TAG:-latest} # 指定要运行的 Docker 镜像， 需要与构建时的名称一致
     container_name: user-service-staging
     ports:
-      - "8081:8081"
+      - "8081:8081"  # "主机端口:容器端口"，将主机的 8081 端口映射到容器的 8081 端口，外部可以通过 主机IP:8081 访问容器服务
     env_file:
-      - ./services/user-service/config/.env.staging
+      - ./services/user-service/config/.env.staging # 从文件加载环境变量
     volumes:
-      - ./services/user-service/dbs:/app/dbs
+      - ./services/user-service/dbs:/app/dbs # 数据卷挂载配置
     networks:
-      - microservices-network
-    restart: unless-stopped
+      - microservices-network # 名称随意， 将多个服务的networdks设置为相同名称，则不同服务之间可以通过服务名称进行内部通信，比如user-service 容器可以访问：post-service:8082
+    restart: unless-stopped  
+    # restart： Docker 容器的重启策略， 
+    # 1. unless-stopped: 除非容器被明确停止（手动停止或删除），否则总是自动重启容器(如容器自身崩溃退出、宿主机重启、应用程序错误导致退出 等)
+    # 2. no： 从不自动重启， 容器退出后就保持停止状态， 适用场景：一次性任务、开发调试
+    # 3. always： 总是自动重启容器， 无论容器是否运行成功， 适用场景：需要持续运行的服务， 比如数据库、消息队列等
+    # 4. on-failure: 仅在非正常退出时重启（退出状态码非0）,可以指定最大重启次数, 适用场景：需要处理错误的服务
 
   post-service:
     image: post-service:${IMAGE_TAG:-latest}
@@ -29,7 +36,7 @@ services:
     networks:
       - microservices-network
     restart: unless-stopped
-    depends_on:
+    depends_on: # 控制服务启动顺序，确保一个服务在其他服务启动之后才启动。先启动 user-service 再启动 post-service
       - user-service
 
 networks:

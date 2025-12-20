@@ -1,4 +1,10 @@
 这是一个简单的 Go 语言测试项目，用于演示多环境部署的流程。
+本项目需要通过brew安装的插件：
+```
+brew install go
+brew install redis
+brew install nginx
+```
 # v2.0.2
 - 所有接口改成POST请求
 - common模块定义所以依赖库版本，各个服务使用common中定义的版本，避免版本不一致
