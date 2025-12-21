@@ -37,14 +37,14 @@ func InitRouter(tokenManager *auth.TokenManager) *gin.Engine {
 			}
 
 			// 互动接口（点赞、转发、收藏、分享）- 中等限流：每秒5个请求，突发10个
-	interactionGroup := posts.Group("")
-interactionGroup.Use(middleware.RateLimit(5, 10))
-{
-	interactionGroup.POST("/like", handler.LikePost)         // 点赞动态
-	interactionGroup.POST("/dislike", handler.DislikePost)   // 踩动态
-	interactionGroup.POST("/favorite", handler.FavoritePost) // 收藏动态
-	interactionGroup.POST("/share", handler.SharePost)       // 分享动态
-}
+			interactionGroup := posts.Group("")
+			interactionGroup.Use(middleware.RateLimit(5, 10))
+			{
+				interactionGroup.POST("/like", handler.LikePost)         // 点赞动态
+				interactionGroup.POST("/dislike", handler.DislikePost)   // 踩动态
+				interactionGroup.POST("/favorite", handler.FavoritePost) // 收藏动态
+				interactionGroup.POST("/share", handler.SharePost)       // 分享动态
+			}
 
 			// 查询接口 - 使用默认的全局限流
 			posts.POST("/get_by_id", handler.GetPostByID)               // 获取动态信息
