@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -66,15 +67,15 @@ func (tm *TokenManager) GenerateTokenPair(userID uint, username, email string) (
 		Email:    email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(tm.config.AccessTokenDuration)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-			Issuer:    tm.config.Issuer,
-			Subject:   fmt.Sprintf("%d", userID),
+			IssuedAt:  jwt.NewNumericDate(now), // 签名时间
+			NotBefore: jwt.NewNumericDate(now), // 生效时间
+			Issuer: tm.config.Issuer, // 标识Token的签发者, 用于验证Token的来源是否可信
+			Subject: fmt.Sprintf("%d", userID), // 标识Token的主题（这个Token是为谁创建的）,通常是用户ID、邮箱或其他唯一标识
 		},
 	}
 
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessTokenString, err := accessToken.SignedString([]byte(tm.config.SecretKey))
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)          // 创建AccessToken
+	accessTokenString, err := accessToken.SignedString([]byte(tm.config.SecretKey)) // 对AccessToken进行签名
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign access token: %w", err)
 	}
@@ -109,17 +110,7 @@ func (tm *TokenManager) GenerateTokenPair(userID uint, username, email string) (
 
 // ValidateToken 验证Token
 func (tm *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
-	// 检查Token是否在黑名单中
-	ctx := context.Background()
-	isBlacklisted, err := tm.IsTokenBlacklisted(ctx, tokenString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check token blacklist: %w", err)
-	}
-	if isBlacklisted {
-		return nil, errors.New("token has been revoked")
-	}
-
-	// 解析Token
+	// 1. 首先解析和验证Token
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		// 验证签名方法
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -132,12 +123,62 @@ func (tm *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 
-	// 提取Claims
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims, nil
+	// 2. 验证Token有效性
+	if !token.Valid {
+		return nil, errors.New("invalid token")
 	}
 
-	return nil, errors.New("invalid token")
+	// 3. 提取Claims并验证
+	claims, ok := token.Claims.(*Claims)
+	if !ok {
+		return nil, errors.New("invalid claims type")
+	}
+
+	// 4. 验证标准声明
+	now := time.Now()
+
+	// 验证过期时间（token.Valid已经检查过，这里再显式检查）
+	if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(now) {
+		return nil, errors.New("token expired")
+	}
+
+	// 验证生效时间（如果有设置）
+	if claims.NotBefore != nil && claims.NotBefore.Time.After(now) {
+		return nil, errors.New("token not yet valid")
+	}
+
+	// 验证签发者
+	if claims.Issuer != tm.config.Issuer {
+		return nil, errors.New("invalid token issuer")
+	}
+
+	// 验证主题（如果业务需要）
+	if claims.Subject == "" {
+		return nil, errors.New("token subject is empty")
+	}
+
+	// 解析用户ID
+	userID, err := strconv.ParseUint(claims.Subject, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id in subject: %w", err)
+	}
+
+	// 确保自定义的UserID和Subject一致
+	if claims.UserID != uint(userID) {
+		return nil, errors.New("user id mismatch")
+	}
+
+	// 5. 检查Token是否在黑名单中
+	ctx := context.Background()
+	isBlacklisted, err := tm.IsTokenBlacklisted(ctx, tokenString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check token blacklist: %w", err)
+	}
+	if isBlacklisted {
+		return nil, errors.New("token has been revoked")
+	}
+
+	return claims, nil
 }
 
 // RefreshAccessToken 使用RefreshToken刷新AccessToken
@@ -182,7 +223,7 @@ func (tm *TokenManager) RevokeToken(ctx context.Context, tokenString string) err
 
 	// 将Token加入Redis黑名单
 	key := fmt.Sprintf("blacklist:token:%s", tokenString)
-	err = tm.redisClient.Set(ctx, key, "1", ttl).Err()
+	err = tm.redisClient.Set(ctx, key, "1", ttl).Err() // 过期后会删除
 	if err != nil {
 		return fmt.Errorf("failed to add token to blacklist: %w", err)
 	}
