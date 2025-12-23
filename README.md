@@ -20,7 +20,21 @@ brew install nginx
 
 # V2.0.0
 项目采用了微服务架构，有两个微服务：登录注册模块、发布动态模块。
-示例中的`http://localhost:8082`都可以替代为 `http://api.staging.myapp.com`
+示例中的`http://localhost:8082`都可以替代为 `http://we-circle-staging.duckdns.org`
+项目中使用到的环境变量：
+- `ENV`: 环境变量, 目前仅用于在main.go中打印
+- `SERVER_PORT`: 服务端口， 用于指定服务运行的端口, 如用户模块运行在8081端口, 动态模块运行在8082端口
+- `DB_DSN`: 数据库连接字符串， 用于指定数据库连接信息, 如 `dbs/staging/user_staging.db`
+- `POST_SERVICE_URL`: 动态服务URL，运行用户模块时，用于对动态模块发起请求, 如 `http://localhost:8082`
+- `USER_SERVICE_URL`: 用户服务URL，运行动态模块时，用于对用户模块发起请求, 如 `http://localhost:8081`
+- `JWT_SECRET_KEY`: JWT认证系统的密钥， 用于对用户进行认证, 密钥长度为32字符, 如 `12345678901234567890123456789012`
+- `JWT_ISSUER`: JWT认证系统的发行者， 用于指定JWT的发行者, 如 `we-circle-staging`, 在生成token以及验证token有效性时会使用这个值
+- `REDIS_HOST`: Redis主机地址， 用于指定Redis数据库的主机地址, 可以是本地地址如 `localhost`, 也可以是远程地址如 `we-circle-staging.duckdns.org`
+- `REDIS_PORT`: Redis端口号， 用于指定Redis数据库的端口号, 如 `6379`
+- `REDIS_PASSWORD`: Redis密码， 用于指定Redis数据库的密码, 如 `123456`, 开发阶段可是设置密码为空， prod环境必须设置密码，否则大家都可以访问Redis数据库  
+- `REDIS_DB`: 数据库分层， 如果不设置，则所有缓存数据都在一起，设置不同的值则是区分不同的场景缓存, 如 `0` 表示默认数据库， `1` 表示第二个数据库, 以此类推
+
+redis几个参数解释可以见：https://ai.feishu.cn/docx/WKkkd6nqToAjz4xrEzScKlrjnxb
 
 相关功能介绍：
 ## 用户模块
@@ -35,18 +49,18 @@ go run main.go
 ### 接口测试
 ```
 // 1. GET 请求（获取所有用户）
-curl http://api.staging.myapp.com/api/v1/users
+curl http://we-circle-staging.duckdns.org/api/v1/users
 
 // 2. GET 请求（获取指定用户）
-curl http://api.staging.myapp.com/api/v1/users/1
+curl http://we-circle-staging.duckdns.org/api/v1/users/1
 
 // 3. POST 请求（注册用户）
-curl -X POST http://api.staging.myapp.com/api/v1/users/register \
+curl -X POST http://we-circle-staging.duckdns.org/api/v1/users/register \
   -H "Content-Type: application/json" \
   -d '{"username": "李四", "email": "lisi@example.com", "phone": "13800138001", "password": "123456"}'
 
 // 4. POST 请求（登录）
-curl -X POST http://api.staging.myapp.com/api/v1/users/login \
+curl -X POST http://we-circle-staging.duckdns.org/api/v1/users/login \
   -H "Content-Type: application/json" \
   -d '{"phone": "13800138000", "password": "123456"}'
 ```
@@ -54,6 +68,7 @@ curl -X POST http://api.staging.myapp.com/api/v1/users/login \
 ## 动态模块
 ### 运行项目
 ```
+// 环境变量目前仅设置了三个，其它参数使用了默认值
 ENV=staging \
 SERVER_PORT=8082 \
 DB_DSN=dbs/staging/post_staging.db \
@@ -62,24 +77,24 @@ go run main.go
 ### 接口测试
 ```
 # GET 请求（获取所有动态）
-curl http://api.staging.myapp.com/api/v1/posts
+curl http://we-circle-staging.duckdns.org/api/v1/posts
 
 # GET 请求（获取指定动态）
-curl http://api.staging.myapp.com/api/v1/posts/1
+curl http://we-circle-staging.duckdns.org/api/v1/posts/1
 
 # POST 请求（创建动态）
-curl -X POST http://api.staging.myapp.com/api/v1/posts \
+curl -X POST http://we-circle-staging.duckdns.org/api/v1/posts \
   -H "Content-Type: application/json" \
   -d '{"user_id": 1, "content": "测试动态", "images": []}'
 
 # POST 请求（点赞）
-curl -X POST http://api.staging.myapp.com/api/v1/posts/1/like
+curl -X POST http://we-circle-staging.duckdns.org/api/v1/posts/1/like
 
 # POST 请求（转发）
-curl -X POST http://api.staging.myapp.com/api/v1/posts/1/forward
+curl -X POST http://we-circle-staging.duckdns.org/api/v1/posts/1/forward
 
 # POST 请求（收藏）
-curl -X POST http://api.staging.myapp.com/api/v1/posts/1/favorite
+curl -X POST http://we-circle-staging.duckdns.org/api/v1/posts/1/favorite
 ```
 
 ## 服务间通信
@@ -206,7 +221,7 @@ go run main.go
 ```
 curl -s http://localhost:8082/api/v1/posts/1/user | jq '.'
 或者
-curl -s http://api.staging.myapp.com/api/v1/posts/1/user | jq '.'
+curl -s http://we-circle-staging.duckdns.org/api/v1/posts/1/user | jq '.'
 ```
 ## Dock镜像构建
 参考文档`a-docs/Docker构建多服务镜像.md`
