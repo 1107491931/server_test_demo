@@ -27,14 +27,19 @@ func InitRedisAndAuth() (*redis.Client, *auth.TokenManager) {
 	}
 
 	// 初始化TokenManager
+	// 初始化TokenManager
+	// post-service 只需要公钥进行验签
 	tokenConfig := &auth.TokenConfig{
-		SecretKey:            GetEnv("JWT_SECRET_KEY", "default-secret-key-change-in-production"),
-		AccessTokenDuration:  auth.AccessTokenDuration,             // 使用公共常量
-		RefreshTokenDuration: auth.RefreshTokenDuration,            // 使用公共常量
-		Issuer:               GetEnv("JWT_ISSUER", "user-service"), // 注意：Issuer应与user-service保持一致
+		PublicKey:            GetEnv("JWT_PUBLIC_KEY", ""),           // PEM格式的公钥
+		AccessTokenDuration:  auth.AccessTokenDuration,               // 使用公共常量
+		RefreshTokenDuration: auth.RefreshTokenDuration,              // 使用公共常量
+		Issuer:               GetEnv("JWT_ISSUER", "we-circle-prod"), // 注意：Issuer应与user-service保持一致
 	}
 
-	tokenManager := auth.NewTokenManager(tokenConfig, redisClient)
+	tokenManager, err := auth.NewTokenManager(tokenConfig, redisClient)
+	if err != nil {
+		log.Fatalf("Failed to initialize TokenManager: %v", err)
+	}
 	fmt.Println("TokenManager initialized successfully")
 
 	return redisClient, tokenManager

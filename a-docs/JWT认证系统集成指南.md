@@ -55,8 +55,10 @@ SERVER_PORT=8081
 DB_DSN=dbs/staging/user_staging.db
 
 # JWT配置
-JWT_SECRET_KEY=your-secret-key-change-in-production
-JWT_ISSUER=your-service-name
+# JWT配置 (RS256 非对称加密)
+JWT_PRIVATE_KEY="$(cat ../../private.pem)"   # 仅 user-service 需要
+JWT_PUBLIC_KEY="$(cat ../../public.pem)"     # 所有服务都需要
+JWT_ISSUER=we-circle-prod
 
 # Redis配置
 REDIS_HOST=localhost
@@ -64,6 +66,25 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 REDIS_DB=0
 ```
+非对称加密文件生成命令，注意：本地开发时有各位研发本地自己生成，prod环境由运维生成，禁止公开。
+
+生成私钥：
+```
+openssl genpkey -algorithm RSA -out private.pem -pkeyopt rsa_keygen_bits:2048
+```
+- genpkey：这是OpenSSL中生成通用私钥的现代命令，支持多种算法。
+- algorithm RSA：明确指定算法为RSA。
+- pkeyopt rsa_keygen_bits:2048：设置密钥长度为2048位。
+- 结果：生成一个 PKCS#8 格式的私钥文件 private.pem。
+
+通过私钥导出公钥：
+```
+openssl rsa -pubout -in private.pem -out public.pem
+```
+- rsa：这是OpenSSL中处理RSA密钥的命令。
+- -pubout：指定输出公钥。
+- -in private.pem：指定输入的私钥文件。
+- -out public.pem：指定输出的公钥文件。
 
 ## 在服务中集成
 
@@ -104,9 +125,10 @@ func main() {
     
     // 初始化TokenManager
     tokenConfig := &auth.TokenConfig{
-        SecretKey:            getEnv("JWT_SECRET_KEY", "default-secret-key"),
-        AccessTokenDuration:  24 * time.Hour,  // 24小时
-        RefreshTokenDuration: 15 * 24 * time.Hour, // 15天
+        PrivateKey:           getEnv("JWT_PRIVATE_KEY", ""), // PEM格式字符串
+        PublicKey:            getEnv("JWT_PUBLIC_KEY", ""),  // PEM格式字符串
+        AccessTokenDuration:  24 * time.Hour,
+        RefreshTokenDuration: 15 * 24 * time.Hour,
         Issuer:               getEnv("JWT_ISSUER", "user-service"),
     }
     
@@ -400,10 +422,12 @@ docker run -d --name redis -p 6379:6379 redis:latest
 
 ## 注意事项
 
-1. **JWT密钥安全**
-   - 生产环境必须使用强密钥
-   - 不要将密钥提交到代码仓库
-   - 使用环境变量管理密钥
+1. **JWT密钥安全 (RS256)**
+   - 使用 `openssl genrsa` 生成强 RSA 密钥对
+   - **Private Key** 必须严格保密，仅用于签发 Token（user-service）
+   - **Public Key** 可分发给验证 Token 的服务（post-service 等）
+   - 不要将私钥提交到代码仓库
+   - 使用环境变量传入 PEM 格式的密钥内容
 
 2. **Token过期时间**
    - AccessToken: 24小时（可根据需求调整）
@@ -428,25 +452,27 @@ docker run -d --name redis -p 6379:6379 redis:latest
 # 启动Redis
 brew services start redis
 
-# 启动user-service
+# 启动user-service (使用 cat 读取密钥文件)
 cd services/user-service
+JWT_PRIVATE_KEY="$(cat ../../private.pem)" \
+JWT_PUBLIC_KEY="$(cat ../../public.pem)" \
 ENV=staging \
 SERVER_PORT=8081 \
 DB_DSN=dbs/staging/user_staging.db \
-JWT_SECRET_KEY=my-super-secret-key-change-in-production \
-JWT_ISSUER=user-service \
+JWT_ISSUER=we-circle-staging \
 REDIS_HOST=localhost \
 REDIS_PORT=6379 \
 REDIS_PASSWORD= \
 REDIS_DB=0 \
 go run main.go
 
-# 启动post-service
+# 启动post-service (仅需公钥)
+cd services/post-service
+JWT_PUBLIC_KEY="$(cat ../../public.pem)" \
 ENV=staging \
 SERVER_PORT=8082 \
 DB_DSN=dbs/staging/post_staging.db \
-JWT_SECRET_KEY=my-super-secret-key-change-in-production \
-JWT_ISSUER=user-service \
+JWT_ISSUER=we-circle-staging \
 REDIS_HOST=localhost \
 REDIS_PORT=6379 \
 REDIS_PASSWORD= \
@@ -474,11 +500,11 @@ Invalid or expired token
 **可能原因**:
 - Token已过期
 - Token已被撤销（在黑名单中）
-- JWT密钥不匹配
+- JWT密钥配置错误 (Private/Public Key 不匹配)
 - Token格式错误
 
 ### 问题3: 环境变量未设置
 ```
-JWT_SECRET_KEY is not set
+JWT_PRIVATE_KEY is not set
 ```
 **解决方案**: 确保所有必需的环境变量都已设置

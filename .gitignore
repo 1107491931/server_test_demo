@@ -57,3 +57,8 @@ services/*/post-service
 *.temp
 *.bak
 *.backup
+
+# Security
+# *.pem
+# *.key
+# *.pub

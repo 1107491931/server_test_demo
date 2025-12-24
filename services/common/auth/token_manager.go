@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 	"strconv"
@@ -20,7 +21,8 @@ const (
 
 // TokenConfig JWT配置
 type TokenConfig struct {
-	SecretKey            string        // JWT密钥
+	PrivateKey           string        // RSA私钥 (PEM格式)
+	PublicKey            string        // RSA公钥 (PEM格式)
 	AccessTokenDuration  time.Duration // AccessToken有效期
 	RefreshTokenDuration time.Duration // RefreshToken有效期
 	Issuer               string        // 签发者
@@ -46,14 +48,36 @@ type TokenPair struct {
 type TokenManager struct {
 	config      *TokenConfig
 	redisClient *redis.Client
+	privateKey  *rsa.PrivateKey
+	publicKey   *rsa.PublicKey
 }
 
 // NewTokenManager 创建Token管理器
-func NewTokenManager(config *TokenConfig, redisClient *redis.Client) *TokenManager {
-	return &TokenManager{
+func NewTokenManager(config *TokenConfig, redisClient *redis.Client) (*TokenManager, error) {
+	tm := &TokenManager{
 		config:      config,
 		redisClient: redisClient,
 	}
+
+	// 解析私钥 (如果提供)
+	if config.PrivateKey != "" {
+		privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(config.PrivateKey))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %w", err)
+		}
+		tm.privateKey = privateKey
+	}
+
+	// 解析公钥
+	if config.PublicKey != "" {
+		publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(config.PublicKey))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse public key: %w", err)
+		}
+		tm.publicKey = publicKey
+	}
+
+	return tm, nil
 }
 
 // GenerateTokenPair 生成Token对（AccessToken和RefreshToken）
@@ -67,15 +91,19 @@ func (tm *TokenManager) GenerateTokenPair(userID uint, username, email string) (
 		Email:    email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(tm.config.AccessTokenDuration)),
-			IssuedAt:  jwt.NewNumericDate(now), // 签名时间
-			NotBefore: jwt.NewNumericDate(now), // 生效时间
-			Issuer: tm.config.Issuer, // 标识Token的签发者, 用于验证Token的来源是否可信
-			Subject: fmt.Sprintf("%d", userID), // 标识Token的主题（这个Token是为谁创建的）,通常是用户ID、邮箱或其他唯一标识
+			IssuedAt:  jwt.NewNumericDate(now),   // 签名时间
+			NotBefore: jwt.NewNumericDate(now),   // 生效时间
+			Issuer:    tm.config.Issuer,          // 标识Token的签发者, 用于验证Token的来源是否可信
+			Subject:   fmt.Sprintf("%d", userID), // 标识Token的主题（这个Token是为谁创建的）,通常是用户ID、邮箱或其他唯一标识
 		},
 	}
 
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)          // 创建AccessToken
-	accessTokenString, err := accessToken.SignedString([]byte(tm.config.SecretKey)) // 对AccessToken进行签名
+	// 使用RS256签名算法
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	if tm.privateKey == nil {
+		return nil, errors.New("private key is not configured for signing")
+	}
+	accessTokenString, err := accessToken.SignedString(tm.privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign access token: %w", err)
 	}
@@ -94,8 +122,8 @@ func (tm *TokenManager) GenerateTokenPair(userID uint, username, email string) (
 		},
 	}
 
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshTokenString, err := refreshToken.SignedString([]byte(tm.config.SecretKey))
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodRS256, refreshClaims)
+	refreshTokenString, err := refreshToken.SignedString(tm.privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign refresh token: %w", err)
 	}
@@ -111,12 +139,16 @@ func (tm *TokenManager) GenerateTokenPair(userID uint, username, email string) (
 // ValidateToken 验证Token
 func (tm *TokenManager) ValidateToken(tokenString string) (*Claims, error) {
 	// 1. 首先解析和验证Token
+
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		// 验证签名方法
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(tm.config.SecretKey), nil
+		if tm.publicKey == nil {
+			return nil, errors.New("public key is not configured for verification")
+		}
+		return tm.publicKey, nil
 	})
 
 	if err != nil {
@@ -202,7 +234,10 @@ func (tm *TokenManager) RevokeToken(ctx context.Context, tokenString string) err
 
 	// 解析Token获取过期时间
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(tm.config.SecretKey), nil
+		if tm.publicKey == nil {
+			return nil, errors.New("public key is not configured for verification")
+		}
+		return tm.publicKey, nil
 	})
 
 	if err != nil {
