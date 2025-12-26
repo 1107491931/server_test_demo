@@ -22,6 +22,9 @@ require (
 
 	// SQLite 数据库驱动
 	gorm.io/driver/sqlite v1.5.4
+
+	// MySQL 数据库驱动
+	gorm.io/driver/mysql v1.5.2
 )
 
 replace common => ../common
