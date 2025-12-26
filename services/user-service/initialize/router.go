@@ -3,7 +3,6 @@ package initialize
 import (
 	"common/auth"
 	"common/middleware"
-	"common/utils"
 	"user-service/handler"
 
 	"github.com/gin-gonic/gin"
@@ -16,9 +15,9 @@ func InitRouter(tokenManager *auth.TokenManager) *gin.Engine {
 	r := gin.Default()
 
 	// 健康检查（不限流）
-	r.GET("/health", func(c *gin.Context) {
-		utils.Success(c, gin.H{"status": "ok"})
-	})
+	r.GET("/health", handler.HealthCheck)
+	r.GET("/ready", handler.ReadinessCheck)
+	r.GET("/live", handler.LivenessCheck)
 
 	// 使用全局限流器：每秒10个请求，突发20个
 	globalLimiter := middleware.GetGlobalRateLimiter(10, 20)
@@ -34,8 +33,8 @@ func InitRouter(tokenManager *auth.TokenManager) *gin.Engine {
 			publicGroup := users.Group("")
 			publicGroup.Use(middleware.RateLimit(2, 5)) // 更严格的限流
 			{
-				publicGroup.POST("/register", handler.Register)    // 注册用户
-				publicGroup.POST("/login", handler.Login)          // 登录
+				publicGroup.POST("/register", handler.Register)          // 注册用户
+				publicGroup.POST("/login", handler.Login)                // 登录
 				publicGroup.POST("/refresh_token", handler.RefreshToken) // 刷新Token
 			}
 

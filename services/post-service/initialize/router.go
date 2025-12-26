@@ -13,9 +13,9 @@ func InitRouter(tokenManager *auth.TokenManager) *gin.Engine {
 	r := gin.Default()
 
 	// 健康检查（不限流）
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	r.GET("/health", handler.HealthCheck)
+	r.GET("/ready", handler.ReadinessCheck)
+	r.GET("/live", handler.LivenessCheck)
 
 	// 使用全局限流器：每秒10个请求，突发20个
 	globalLimiter := middleware.GetGlobalRateLimiter(10, 20)
