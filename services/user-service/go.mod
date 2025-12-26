@@ -12,7 +12,7 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 
 	// JWT 认证库
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 
 	// Redis 客户端
 	github.com/redis/go-redis/v9 v9.17.2
@@ -22,11 +22,11 @@ require (
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.2
 
-	// SQLite 数据库驱动
-	gorm.io/driver/sqlite v1.6.0
-
 	// MySQL 数据库驱动
 	gorm.io/driver/mysql v1.5.2
+
+	// SQLite 数据库驱动
+	gorm.io/driver/sqlite v1.6.0
 
 	// GORM 数据库操作库
 	gorm.io/gorm v1.31.1
@@ -52,6 +52,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.14.0 // indirect
 	github.com/go-resty/resty/v2 v2.11.0 // indirect
+	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
