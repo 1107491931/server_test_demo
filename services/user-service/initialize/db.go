@@ -30,10 +30,9 @@ func InitDB(dsn string) *gorm.DB {
 		log.Fatal("failed to connect database")
 	}
 
-	// 自动迁移： 自动创建表、新增字段时老数据自动补充字段
-	// 如果新增字段没有默认值，则数字类型默认0、bool类型默认false、对象类型默认nil等
+	// 自动迁移
 	if err := model.AutoMigrate(db); err != nil {
-		log.Fatal("failed to migrate database")
+		log.Printf("failed to migrate database: %v", err)
 	}
 
 	// 初始化DAO
