@@ -3,9 +3,11 @@ package auth
 import (
 	"context"
 	"crypto/rsa"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -59,9 +61,22 @@ func NewTokenManager(config *TokenConfig, redisClient *redis.Client) (*TokenMana
 		redisClient: redisClient,
 	}
 
+	// 辅助函数：解析密钥内容（支持 Base64 和转义换行符）
+	parseKeyContent := func(keyStr string) []byte {
+		// 如果不包含 PEM 头，尝试 Base64 解码
+		if !strings.Contains(keyStr, "-----BEGIN") {
+			decoded, err := base64.StdEncoding.DecodeString(keyStr)
+			if err == nil {
+				return decoded
+			}
+		}
+		// 处理转义换行符
+		return []byte(strings.ReplaceAll(keyStr, "\\n", "\n"))
+	}
+
 	// 解析私钥 (如果提供)
 	if config.PrivateKey != "" {
-		privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(config.PrivateKey))
+		privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(parseKeyContent(config.PrivateKey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse private key: %w", err)
 		}
@@ -70,7 +85,7 @@ func NewTokenManager(config *TokenConfig, redisClient *redis.Client) (*TokenMana
 
 	// 解析公钥
 	if config.PublicKey != "" {
-		publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(config.PublicKey))
+		publicKey, err := jwt.ParseRSAPublicKeyFromPEM(parseKeyContent(config.PublicKey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse public key: %w", err)
 		}
