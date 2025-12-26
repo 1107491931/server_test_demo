@@ -20,6 +20,9 @@ COPY services/user-service/go.mod services/user-service/go.sum ./user-service/
 # 切换到 user-service 目录
 WORKDIR /build/user-service
 
+# 自动更新 go.sum 以包含新添加的 MySQL 驱动
+RUN go mod tidy
+
 # 下载依赖（添加重试机制）
 RUN go mod download || go mod download || go mod download
 
