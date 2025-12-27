@@ -62,6 +62,7 @@ func NewTokenManager(config *TokenConfig, redisClient *redis.Client) (*TokenMana
 	}
 
 	// 辅助函数：解析密钥内容（支持 Base64 和转义换行符）
+	// 本地测试时，直接使用公钥、私钥， 但zeadur平台环境变量不支持换行，只能对公私钥进行base64加密
 	parseKeyContent := func(keyStr string) []byte {
 		// 如果不包含 PEM 头，尝试 Base64 解码
 		if !strings.Contains(keyStr, "-----BEGIN") {
