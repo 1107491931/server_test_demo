@@ -24,7 +24,9 @@ func InitDB(dsn string) *gorm.DB {
 	}
 
 	// 连接数据库
-	db, err := gorm.Open(dialector, &gorm.Config{})
+	db, err := gorm.Open(dialector, &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true, // 禁用外键约束
+	})
 	if err != nil {
 		log.Printf("failed to connect database, dsn: %s, error: %v", dsn, err)
 		log.Fatal("failed to connect database")
@@ -32,7 +34,7 @@ func InitDB(dsn string) *gorm.DB {
 
 	// 自动迁移
 	if err := model.AutoMigrate(db); err != nil {
-		log.Printf("failed to migrate database: %v", err)
+		log.Fatalf("failed to migrate database: %v", err)
 	}
 
 	// 初始化DAO
