@@ -25,7 +25,7 @@ func InitDB(dsn string) *gorm.DB {
 
 	// 连接数据库
 	db, err := gorm.Open(dialector, &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
+		DisableForeignKeyConstraintWhenMigrating: true, // 禁用外键约束
 	})
 	if err != nil {
 		log.Printf("failed to connect database, dsn: %s, error: %v", dsn, err)
