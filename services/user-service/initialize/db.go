@@ -32,7 +32,7 @@ func InitDB(dsn string) *gorm.DB {
 
 	// 自动迁移
 	if err := model.AutoMigrate(db); err != nil {
-		log.Printf("failed to migrate database: %v", err)
+		log.Fatalf("failed to migrate database: %v", err)
 	}
 
 	// 初始化DAO
