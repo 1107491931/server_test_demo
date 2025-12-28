@@ -34,7 +34,7 @@ func InitDB(dsn string) *gorm.DB {
 
 	// 自动迁移
 	if err := model.AutoMigrate(db); err != nil {
-		log.Printf("warning: failed to migrate database: %v", err) // 改为普通log输出，否则zeabur会报错
+		log.Printf("warning: failed to migrate database: %v", err) // 改为普通log输出，否则zeabur会报错，提示外键错误
 	}
 
 	// 初始化DAO
