@@ -16,6 +16,7 @@ type Response struct {
 
 // Success 成功响应
 func Success(c *gin.Context, data interface{}) {
+	c.Set("biz_code", errs.SUCCESS)
 	c.JSON(http.StatusOK, Response{
 		Code:    errs.SUCCESS,
 		Message: errs.GetMsg(errs.SUCCESS),
@@ -25,6 +26,7 @@ func Success(c *gin.Context, data interface{}) {
 
 // SuccessWithMessage 成功响应（自定义消息）
 func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
+	c.Set("biz_code", errs.SUCCESS)
 	c.JSON(http.StatusOK, Response{
 		Code:    errs.SUCCESS,
 		Message: message,
@@ -34,6 +36,7 @@ func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
 
 // Error 错误响应 (基础方法)
 func Error(c *gin.Context, httpCode int, errCode int, message string) {
+	c.Set("biz_code", errCode)
 	// 强制返回 HTTP 200 OK，前端根据 code 判断
 	c.JSON(http.StatusOK, Response{
 		Code:    errCode,
@@ -64,6 +67,7 @@ func InternalServerError(c *gin.Context, message string) {
 
 // BusinessError 业务逻辑错误 (返回200状态码，但包含错误码)
 func BusinessError(c *gin.Context, errCode int, message string) {
+	c.Set("biz_code", errCode)
 	c.JSON(http.StatusOK, Response{
 		Code:    errCode,
 		Message: message,

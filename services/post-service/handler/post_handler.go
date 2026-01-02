@@ -31,9 +31,9 @@ type GetPostByIDRequest struct {
 
 // GetPostsByUserIDRequest 根据用户ID获取动态列表请求参数
 type GetPostsByUserIDRequest struct {
-	UserID   uint `json:"userId" binding:"required"`
-	Page     int  `json:"page"`
-	PageSize int  `json:"pageSize"`
+	// UserID   uint `json:"userId"` // 不再需要入参传递，从Token获取
+	Page     int `json:"page"`
+	PageSize int `json:"pageSize"`
 }
 
 // GetAllPostsRequest 获取所有动态请求参数
@@ -56,12 +56,12 @@ type PostResponse struct {
 	Content       string   `json:"content"`
 	Images        []string `json:"images"`
 	LikeCount     int      `json:"likeCount"`
-	DislikeCount  int      `json:"dislikeCount"`  // 踩数
+	DislikeCount  int      `json:"dislikeCount"` // 踩数
 	FavoriteCount int      `json:"favoriteCount"`
 	ShareCount    int      `json:"shareCount"`
-	IsLiked       bool     `json:"isLiked"`       // 当前用户是否点赞
-	IsDisliked    bool     `json:"isDisliked"`    // 当前用户是否踩
-	IsFavorited   bool     `json:"isFavorited"`   // 当前用户是否收藏
+	IsLiked       bool     `json:"isLiked"`     // 当前用户是否点赞
+	IsDisliked    bool     `json:"isDisliked"`  // 当前用户是否踩
+	IsFavorited   bool     `json:"isFavorited"` // 当前用户是否收藏
 	CreatedAt     string   `json:"createdAt"`
 }
 
@@ -220,7 +220,13 @@ func GetPostByID(c *gin.Context) {
 func GetPostsByUserID(c *gin.Context) {
 	var req GetPostsByUserIDRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		// 忽略错误，使用默认值
+	}
+
+	// 从Context获取用户ID
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		utils.InternalServerError(c, "User ID not found in token")
 		return
 	}
 
@@ -235,14 +241,11 @@ func GetPostsByUserID(c *gin.Context) {
 	}
 
 	// 获取动态列表
-	posts, total, err := dao.GetPostsByUserID(req.UserID, page, pageSize)
+	posts, total, err := dao.GetPostsByUserID(userID, page, pageSize)
 	if err != nil {
 		utils.InternalServerError(c, "Database error")
 		return
 	}
-
-	// 从Context中获取用户ID
-	userID, _ := middleware.GetUserID(c)
 
 	// 转换为响应格式
 	responses := make([]PostResponse, 0)
@@ -658,7 +661,7 @@ func DislikePost(c *gin.Context) {
 	post, _ = dao.GetPostByID(req.PostID)
 
 	result := gin.H{
-		"postId":     post.ID,
+		"postId":       post.ID,
 		"dislikeCount": post.DislikeCount,
 	}
 
