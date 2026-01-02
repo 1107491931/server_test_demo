@@ -9,6 +9,10 @@ brew install flyctl // 云部署
 
 >首次运行项目，可以通过openssl生成私钥和公钥, 方便通过环境变量运行服务， 可参考`a-docs/JWT认证系统集成指南.md`
 
+# v2.0.4
+- 增加日志、接口监控功能
+- user-service、post-service重复代码重构到common
+
 # v2.0.3 
 - 增加了zeabur.yaml配置文件， 用于zeabur部署
 
