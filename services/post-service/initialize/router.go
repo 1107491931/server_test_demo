@@ -18,6 +18,7 @@ func InitRouter(tokenManager *auth.TokenManager) *gin.Engine {
 	r.Use(middleware.PrometheusMiddleware()) // 监控指标
 	r.Use(middleware.ZapLogger())            // Zap 日志
 	r.Use(middleware.ZapRecovery())          // Zap Recovery
+	r.Use(middleware.CORS())                 // CORS 中间件
 
 	// 健康检查（不限流）
 	r.GET("/health", handler.HealthCheck)
