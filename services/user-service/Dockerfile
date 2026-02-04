@@ -37,16 +37,16 @@ FROM alpine:latest
 
 # 更新包索引并安装依赖（添加重试机制）
 RUN apk update && \
-    apk add --no-cache ca-certificates sqlite-libs || \
-    (apk update && apk add --no-cache ca-certificates sqlite-libs)
+    apk add --no-cache ca-certificates sqlite-libs tzdata || \
+    (apk update && apk add --no-cache ca-certificates sqlite-libs tzdata)
 
 WORKDIR /app
 
 # 从构建阶段复制二进制文件
 COPY --from=builder /build/user-service/user-service .
 
-# 创建数据库目录和密钥目录
-RUN mkdir -p /app/dbs/staging /app/dbs/pre /app/dbs/prod /app/keys
+# 创建数据库目录、密钥目录和日志目录
+RUN mkdir -p /app/dbs/staging /app/dbs/pre /app/dbs/prod /app/keys /app/logs
 
 # 暴露端口
 EXPOSE 8081
