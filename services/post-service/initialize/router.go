@@ -10,20 +10,34 @@ import (
 
 // InitRouter 初始化路由
 func InitRouter(tokenManager *auth.TokenManager) *gin.Engine {
-	r := gin.Default()
+	// 使用 gin.New() 而不是 Default()
+	r := gin.New()
+
+	// 注册核心中间件
+	r.Use(middleware.RequestId())            // 生成请求 ID
+	r.Use(middleware.PrometheusMiddleware()) // 监控指标
+	r.Use(middleware.ZapLogger())            // Zap 日志
+	r.Use(middleware.ZapRecovery())          // Zap Recovery
+	r.Use(middleware.CORS())                 // CORS 中间件
 
 	// 健康检查（不限流）
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	r.GET("/health", handler.HealthCheck)
+	r.GET("/ready", handler.ReadinessCheck)
+	r.GET("/live", handler.LivenessCheck)
+
+	// 暴露 Prometheus 指标端点
+	r.GET("/metrics", middleware.MetricsHandler())
 
 	// 使用全局限流器：每秒10个请求，突发20个
 	globalLimiter := middleware.GetGlobalRateLimiter(10, 20)
 
-	// API路由组 - 应用全局速率限制和请求/响应日志
+	// API路由组
 	v1 := r.Group("/api/v1")
-	v1.Use(globalLimiter.Middleware())         // 应用全局速率限制
-	v1.Use(middleware.RequestResponseLogger()) // 添加请求/响应日志中间件
+	v1.Use(globalLimiter.Middleware()) // 应用全局速率限制
+
+	// 注入请求上下文 Logger
+	v1.Use(middleware.ContextLogger())
+
 	{
 		posts := v1.Group("/posts")
 		// 应用JWT认证 - 所有动态相关接口都需要认证

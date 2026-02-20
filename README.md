@@ -9,6 +9,13 @@ brew install flyctl // 云部署
 
 >首次运行项目，可以通过openssl生成私钥和公钥, 方便通过环境变量运行服务， 可参考`a-docs/JWT认证系统集成指南.md`
 
+# v2.0.4
+- 增加日志、接口监控功能
+- user-service、post-service重复代码重构到common
+
+# v2.0.3 
+- 增加了zeabur.yaml配置文件， 用于zeabur部署
+
 # v2.0.2
 - 所有接口改成POST请求
 - common模块定义所以依赖库版本，各个服务使用common中定义的版本，避免版本不一致
@@ -38,6 +45,10 @@ brew install flyctl // 云部署
 - `REDIS_PORT`: 用于指定Redis数据库的端口号, 如 `6379`, 默认值`6379`
 - `REDIS_PASSWORD`: 用于指定Redis数据库的密码, 如 `123456`, 开发阶段可是设置密码为空， prod环境必须设置密码，否则大家都可以访问Redis数据库, 默认值为空
 - `REDIS_DB`: 用于指定Redis数据库的数据库分层， 如果不设置，则所有缓存数据都在一起，设置不同的值则是区分不同的场景缓存, 如 `0` 表示默认数据库， `1` 表示第二个数据库, 以此类推, 默认值`0`
+- `LOKI_URL`: 用于指定Grafana Loki日志系统的URL, 如 `https://logs-prod-021.grafana.net/loki/api/v1/push`
+- `LOKI_USER_ID`: 用于指定Grafana Loki日志系统的用户ID, 如 `1441206`
+- `LOKI_TOKEN`: 用于指定Grafana Loki日志系统的token, 如 `sa-1-go-app-logger-0630bb76-d8ac-4fc9-8ef5-fa9c3acfc962`
+- `LOG_LEVEL="development"` 用于设置日志级别，development为开发环境, 传入其它值为生产环境. 环境变量代码在`common/config/config.go`中
 
 redis几个参数解释可以见：https://ai.feishu.cn/docx/WKkkd6nqToAjz4xrEzScKlrjnxb
 
@@ -50,10 +61,27 @@ ENV=staging \
 SERVER_PORT=8081 \
 DB_DSN=dbs/staging/user_staging.db \
 POST_SERVICE_URL=http://localhost:8082 \
+LOG_LEVEL=development \
 JWT_PRIVATE_KEY="$(cat ../../private.pem)" \
 JWT_PUBLIC_KEY="$(cat ../../public.pem)" \
+GRAFANA_TOKEN="<YOUR_GRAFANA_TOKEN>" \
+LOKI_URL="https://logs-prod-021.grafana.net/loki/api/v1/push" \
+LOKI_USER_ID="<YOUR_LOKI_USER_ID>" \
+PROM_REMOTE_URL="https://prometheus-prod-36-prod-us-west-0.grafana.net/api/prom/push" \
+PROM_USER_ID="<YOUR_PROM_USER_ID>" \
 go run main.go
 ```
+
+Grafana token获取地址：https://chomayvip.grafana.net/a/grafana-auth-app， token获取流程：
+- 左边栏 -> 管理 -> 用户和访问权限 -> Cloud access policies -> Create Access Policy
+- 输入名称、realms选择chomayvip、scopes中logs与metrics勾选read与write
+- 点击crate后，在Access Policies列表中会看到新增的项
+- 点击Add Token，会生成token，复制token
+
+Grafana中URL与userId获取地址：https://chomayvip.grafana.net/connections/datasources/edit/grafanacloud-logs
+- 左侧栏 -> Connections -> Data Sources -> 搜索logs并点击grafanacloud-chomayvip-logs -> 可以看到URL、User
+
+
 ### 接口测试
 ```
 // 1. GET 请求（获取所有用户）
@@ -81,7 +109,13 @@ ENV=staging \
 SERVER_PORT=8082 \
 DB_DSN=dbs/staging/post_staging.db \
 USER_SERVICE_URL=http://localhost:8081 \
+LOG_LEVEL=development \
 JWT_PUBLIC_KEY="$(cat ../../public.pem)" \
+GRAFANA_TOKEN="<YOUR_GRAFANA_TOKEN>" \
+LOKI_URL="https://logs-prod-021.grafana.net/loki/api/v1/push" \
+LOKI_USER_ID="<YOUR_LOKI_USER_ID>" \
+PROM_REMOTE_URL="https://prometheus-prod-36-prod-us-west-0.grafana.net/api/prom/push" \
+PROM_USER_ID="<YOUR_PROM_USER_ID>" \
 go run main.go
 ```
 ### 接口测试

@@ -9,13 +9,13 @@ import (
 )
 
 // InitRedisAndAuth 初始化Redis和认证模块
-func InitRedisAndAuth() (*redis.Client, *auth.TokenManager) {
+func InitRedisAndAuth(cfg *Config) (*redis.Client, *auth.TokenManager) {
 	// 初始化Redis
 	redisConfig := &auth.RedisConfig{
-		Host:     GetEnv("REDIS_HOST", "localhost"),
-		Port:     GetEnvAsInt("REDIS_PORT", 6379),
-		Password: GetEnv("REDIS_PASSWORD", ""),
-		DB:       GetEnvAsInt("REDIS_DB", 0),
+		Host:     cfg.RedisHost,
+		Port:     cfg.RedisPort,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
 	}
 
 	redisClient, err := auth.NewRedisClient(redisConfig)
@@ -27,13 +27,12 @@ func InitRedisAndAuth() (*redis.Client, *auth.TokenManager) {
 	}
 
 	// 初始化TokenManager
-	// 初始化TokenManager
-	// post-service 只需要公钥进行验签
+	// post-service 重点是验签
 	tokenConfig := &auth.TokenConfig{
-		PublicKey:            GetEnv("JWT_PUBLIC_KEY", ""),           // PEM格式的公钥
-		AccessTokenDuration:  auth.AccessTokenDuration,               // 使用公共常量
-		RefreshTokenDuration: auth.RefreshTokenDuration,              // 使用公共常量
-		Issuer:               GetEnv("JWT_ISSUER", "we-circle-prod"), // 注意：Issuer应与user-service保持一致
+		PublicKey:            cfg.JWTPublicKey,
+		AccessTokenDuration:  auth.AccessTokenDuration,
+		RefreshTokenDuration: auth.RefreshTokenDuration,
+		Issuer:               cfg.JWTIssuer,
 	}
 
 	tokenManager, err := auth.NewTokenManager(tokenConfig, redisClient)

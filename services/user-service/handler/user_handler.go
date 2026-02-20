@@ -57,7 +57,7 @@ type BatchGetUsersRequest struct {
 
 // GetUserByIDRequest 根据ID获取用户请求参数
 type GetUserByIDRequest struct {
-	UserID uint `json:"userId" binding:"required"`
+	// UserID uint `json:"userId"` // 不再需要入参传递，从Token获取
 }
 
 // GetUserByEmailRequest 根据邮箱获取用户请求参数
@@ -67,9 +67,9 @@ type GetUserByEmailRequest struct {
 
 // GetUserWithPostsRequest 获取用户及动态请求参数
 type GetUserWithPostsRequest struct {
-	UserID   uint `json:"userId" binding:"required"`
-	Page     int  `json:"page"`
-	PageSize int  `json:"pageSize"`
+	// UserID   uint `json:"userId"` // 不再需要入参传递，从Token获取
+	Page     int `json:"page"`
+	PageSize int `json:"pageSize"`
 }
 
 // UserResponse 用户响应数据
@@ -208,13 +208,14 @@ func Login(c *gin.Context) {
 // @Success      200  {object}  utils.Response
 // @Router       /api/v1/users/get_by_id [post]
 func GetUserByID(c *gin.Context) {
-	var req GetUserByIDRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+	// 从Context获取用户ID
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		utils.InternalServerError(c, "User ID not found in token")
 		return
 	}
 
-	user, err := dao.GetUserByID(req.UserID)
+	user, err := dao.GetUserByID(userID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			utils.BusinessError(c, errs.USER_NOT_FOUND, "User not found")
@@ -335,7 +336,13 @@ type UserWithPostsResponse struct {
 func GetUserWithPosts(c *gin.Context) {
 	var req GetUserWithPostsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		// 如果 body 为空或字段不存在，忽略错误继续执行（分页使用默认值）
+	}
+
+	// 从Context获取用户ID
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		utils.InternalServerError(c, "User ID not found in token")
 		return
 	}
 
@@ -350,7 +357,7 @@ func GetUserWithPosts(c *gin.Context) {
 	}
 
 	// 获取用户信息， 接口中也需要返回用户信息
-	user, err := dao.GetUserByID(req.UserID)
+	user, err := dao.GetUserByID(userID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			utils.BusinessError(c, errs.USER_NOT_FOUND, "User not found")
@@ -360,9 +367,16 @@ func GetUserWithPosts(c *gin.Context) {
 		return
 	}
 
+	// 转发 Authorization 头
+	headers := map[string]string{}
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" {
+		headers["Authorization"] = authHeader
+	}
+
 	// 调用动态服务获取用户的所有动态
 	postClient := client.NewPostClient()
-	posts, total, err := postClient.GetUserPosts(req.UserID, page, pageSize)
+	posts, total, err := postClient.GetUserPosts(userID, page, pageSize, headers)
 	if err != nil {
 		// 如果获取动态失败，仍然返回用户信息，但不包含动态
 		fmt.Printf("Failed to get user posts: %v\n", err)

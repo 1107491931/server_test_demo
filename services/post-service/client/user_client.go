@@ -3,10 +3,10 @@ package client
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"common/client"
+	"common/config"
 	"common/dto"
 	"common/errs"
 )
@@ -18,10 +18,7 @@ type UserClient struct {
 
 // NewUserClient 创建用户服务客户端
 func NewUserClient() *UserClient {
-	baseURL := os.Getenv("USER_SERVICE_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:8081"
-	}
+	baseURL := config.GetEnv("USER_SERVICE_URL", "http://localhost:8081")
 
 	return &UserClient{
 		httpClient: client.NewHTTPClient(baseURL),

@@ -1,0 +1,377 @@
+# Zeabur 部署模板配置文件 - 完善版
+# ============================================
+# 项目：WeCircle 社交媒体微服务
+# 基于 DeepSeek 配置模板优化
+# ============================================
+
+# 服务定义
+services:
+  # user-service - 用户服务
+  user-service:
+    displayName: User Service
+    description: 用户认证和用户管理服务（注册、登录、JWT认证）
+    type: docker
+    build:
+      context: .  # 从项目根目录构建，以便访问 common 模块
+      dockerfile: services/user-service/Dockerfile
+      # 构建优化
+      cacheFrom:
+        - golang:1.24-alpine
+        - alpine:latest
+      buildArgs:
+        - GO_VERSION=1.24
+        - GO_ENV=production
+    ports:
+      - protocol: tcp
+        port: 8081
+    expose: false  # 仅内部访问
+    # 环境变量
+    env:
+      # 基础配置
+      ENV: prod
+      SERVER_PORT: "8081"
+      SERVICE_NAME: user-service
+      
+      # 数据库配置
+      DB_DSN: /app/dbs/prod/user_prod.db
+      
+      # Redis 配置（Zeabur会自动注入 REDIS_HOST, REDIS_PORT, REDIS_PASSWORD）
+      REDIS_ENABLED: "true"
+      REDIS_DB: "0"
+      
+      # JWT 配置
+      JWT_ISSUER: we-circle-prod
+      JWT_ALGORITHM: RS256
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      
+      # 服务间通信
+      POST_SERVICE_URL: http://post-service:8082
+      
+      # 日志配置
+      LOG_LEVEL: info
+      TZ: Asia/Shanghai
+    
+    # 依赖的服务
+    dependsOn:
+      - mysql
+      - redis
+    # 健康检查（支持多种检查方式）
+    healthCheck:
+      http:
+        path: /health
+        port: 8081
+      # 备用TCP检查
+      tcp:
+        port: 8081
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      startupDelay: 15s
+    # 资源限制
+    resources:
+      cpu: 500m
+      memory: 512Mi
+      # 扩展配置
+      capabilities:
+        add: []
+        drop: []
+      # 扩展资源
+      # storage:
+      #   - name: user-data
+      #     path: /data
+      #     size: 1Gi
+      #     class: ssd
+    # 部署策略
+    deploy:
+      replicas: 1
+      # rollingUpdate:
+      #   maxSurge: 1
+      #   maxUnavailable: 0
+
+  # post-service - 帖子服务
+  post-service:
+    displayName: Post Service
+    description: 帖子发布和管理服务（动态、点赞、评论）
+    type: docker
+    build:
+      context: .  # 从项目根目录构建，以便访问 common 模块
+      dockerfile: services/post-service/Dockerfile
+      cacheFrom:
+        - golang:1.24-alpine
+        - alpine:latest
+      buildArgs:
+        - GO_VERSION=1.24
+        - GO_ENV=production
+    ports:
+      - protocol: tcp
+        port: 8082
+    expose: false
+    env:
+      # 基础配置
+      ENV: prod
+      SERVER_PORT: "8082"
+      SERVICE_NAME: post-service
+      
+      # 数据库配置
+      DB_DSN: /app/dbs/prod/post_prod.db
+      
+      # Redis 配置
+      REDIS_ENABLED: "true"
+      REDIS_DB: "0"
+      
+      # JWT 配置（用于验证用户Token）
+      JWT_ISSUER: we-circle-prod
+      JWT_ALGORITHM: RS256
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      
+      # 服务间通信
+      USER_SERVICE_URL: http://user-service:8081
+      
+      # 日志配置
+      LOG_LEVEL: info
+      TZ: Asia/Shanghai
+    
+    dependsOn:
+      - mysql
+      - redis
+      - user-service
+    healthCheck:
+      http:
+        path: /health
+        port: 8082
+      tcp:
+        port: 8082
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      startupDelay: 15s
+    resources:
+      cpu: 500m
+      memory: 512Mi
+    deploy:
+      replicas: 1
+
+  # mysql - MySQL 数据库服务
+  mysql:
+    displayName: MySQL Database
+    description: 关系型数据库（用户数据、帖子数据存储）
+    type: mysql
+    version: "8.0"
+    options:
+      database: app_db
+      username: zeabur_user
+      # 密码通过环境变量注入
+    ports:
+      - protocol: tcp
+        port: 3306
+    # 资源限制
+    resources:
+      cpu: 1000m
+      memory: 1Gi
+    # 存储卷
+    volumes:
+      - name: mysql-data
+        size: 5Gi
+        mountPath: /var/lib/mysql
+    # MySQL 特定配置
+    configuration:
+      # 字符集
+      characterSetServer: utf8mb4
+      collationServer: utf8mb4_unicode_ci
+      # 性能优化
+      maxConnections: "200"
+      innodbBufferPoolSize: 512M
+      # 时区
+      # defaultTimeZone: "+08:00"
+
+  # redis - Redis 缓存服务
+  redis:
+    displayName: Redis Cache
+    description: 缓存和会话存储服务
+    type: redis
+    version: "7.0"
+    # 端口
+    ports:
+      - protocol: tcp
+        port: 6379
+    # 资源限制
+    resources:
+      cpu: 500m
+      memory: 512Mi
+    # 存储卷
+    volumes:
+      - name: redis-data
+        size: 1Gi
+        mountPath: /data
+    # Redis 特定配置
+    configuration:
+      # 内存策略
+      maxmemory: 256mb
+      maxmemoryPolicy: allkeys-lru
+      # 持久化
+      appendonly: "yes"
+      appendfsync: everysec
+      # 性能优化
+      tcp-keepalive: "300"
+      timeout: "0"
+
+# ============================================
+# 全局配置
+# ============================================
+
+# 全局环境变量
+globalEnv:
+  # 基础配置
+  ENV: prod
+  LOG_LEVEL: info
+  TZ: Asia/Shanghai
+  
+  # JWT 配置
+  JWT_ISSUER: we-circle-prod
+  JWT_ALGORITHM: RS256
+  # JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+  # JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+  # JWT_EXPIRE_HOURS: "24"
+  
+  # 服务间通信配置
+  USER_SERVICE_URL: http://user-service:8081
+  POST_SERVICE_URL: http://post-service:8082
+  
+  # Redis 默认配置
+  REDIS_ENABLED: "true"
+  REDIS_DB: "0"
+  
+  # 安全配置
+  # CORS_ALLOWED_ORIGINS: https://*.zeabur.app
+  # RATE_LIMIT_ENABLED: "true"
+  # RATE_LIMIT_REQUESTS: "100"
+  # RATE_LIMIT_WINDOW: "60"
+
+# ============================================
+# 密钥管理
+# ============================================
+secrets:
+  - name: JWT_PRIVATE_KEY
+    value: ${JWT_PRIVATE_KEY}
+  - name: JWT_PUBLIC_KEY
+    value: ${JWT_PUBLIC_KEY}
+  - name: MYSQL_PASSWORD
+    value: ${MYSQL_PASSWORD}
+  # - name: DATABASE_ENCRYPT_KEY
+  #   value: ${DATABASE_ENCRYPT_KEY}
+
+# ============================================
+# 网络配置
+# ============================================
+network:
+  # 服务发现配置
+  serviceDiscovery:
+    # 内部域名后缀
+    internalDomainSuffix: svc.cluster.local
+    # 服务网格
+    serviceMesh: false
+  
+  # 入口配置
+  ingress:
+    # 入口类
+    class: nginx
+    # 自定义注解
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    # TLS 配置
+    tls:
+      - hosts:
+          - api.we-circle.com
+        secretName: we-circle-tls-cert
+  
+  # 内部网络策略
+  internal:
+    user-service:
+      - mysql
+      - redis
+      - post-service
+    post-service:
+      - mysql
+      - redis
+      - user-service
+    mysql:
+      - user-service
+      - post-service
+    redis:
+      - user-service
+      - post-service
+
+# ============================================
+# 域名配置
+# ============================================
+domains:
+  # 主API域名
+  - host: api.we-circle.com
+    type: custom
+    tls:
+      enabled: true
+      type: managed
+      issuer: letsencrypt
+      autoRenew: true
+      httpChallenge: true
+  
+  # Zeabur 默认域名（自动分配）
+  - host: ${ZEABUR_PROJECT_ID}-api.zeabur.app
+    type: zeabur
+    tls: true
+
+# ============================================
+# 构建配置
+# ============================================
+build:
+  # 构建缓存配置
+  cacheFrom:
+    - golang:1.24-alpine
+    - alpine:latest
+    - user-service:latest
+    - post-service:latest
+  
+  # 全局构建参数
+  globalBuildArgs:
+    - GO_VERSION=1.24
+    - GO_ENV=production
+  
+  # 构建优化
+  optimization:
+    minimize: true
+    compress: true
+    # 并行构建
+    parallel: true
+
+# ============================================
+# 部署配置
+# ============================================
+deploy:
+  # 滚动更新配置
+  rollingUpdate:
+    strategy: rolling
+    # maxSurge: 1
+    # maxUnavailable: 0
+    # partition: 0
+  
+  # 副本配置
+  replicas:
+    user-service: 1
+    post-service: 1
+  
+  # 放置约束
+  # placement:
+  #   constraints:
+  #     - node.role == worker
+
+# ============================================
+# 区域配置
+# ============================================
+region: us-west-1
+
+# ============================================
+# 版本信息
+# ============================================
+version: "1.0"
+name: we-circle-social-app
